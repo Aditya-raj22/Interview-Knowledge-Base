@@ -9,6 +9,7 @@ A production-ready RAG-based system for interview preparation. Sources documents
 - **Smart retrieval** - Cluster-aware search with entity matching (10x faster)
 - **Multi-model generation** - Support for GPT-4o and Claude 3.5 Sonnet
 - **Structured output** - Summary, insights, key entities, citations with performance metrics
+- **Retro web UI** - Beautiful terminal-style interface with real-time streaming and RAG chat
 - **Full test coverage** - 40 tests with mocked network calls
 
 ## 📁 Architecture
@@ -29,6 +30,9 @@ KB/
 │   ├── generator.py      # Multi-model: GPT-4o + Claude 3.5
 │   └── brief_builder.py  # generate_brief() orchestrator
 ├── tests/                # 40 tests (39 passing, 1 skipped)
+├── ui/                   # Web interface
+│   ├── app.py            # FastAPI backend with SSE streaming
+│   └── static/           # HTML/CSS/JS frontend
 ├── main.py               # CLI with argparse
 └── config.py             # Centralized configuration
 ```
@@ -52,6 +56,40 @@ cp .env.example .env
 ```
 
 ## 📖 Usage
+
+### Web UI (Recommended)
+
+The system includes a beautiful retro-styled web interface with two modes:
+
+```bash
+# Start the UI server
+./start_ui.sh
+
+# Or manually:
+cd ui && python app.py
+
+# Open browser to: http://localhost:8000
+```
+
+**Mode 1: URL Discovery (Primary) - For NotebookLM**
+- Enter company name and person
+- Click "URL_DISCOVERY" tab
+- Get 50+ relevant URLs from:
+  - Company websites (with all subpages from sitemap)
+  - SEC filings
+  - YouTube videos/interviews
+  - Podcasts (Spotify, Apple)
+  - News articles
+  - Research papers
+- One-click copy for NotebookLM import
+- URLs grouped by category
+
+**Mode 2: RAG Pipeline (Full System)**
+- Real-time pipeline progress with Server-Sent Events
+- Chat interface for RAG queries
+- File browser showing ingested sources
+- Retro terminal aesthetic (cream/white/crimson color scheme)
+- Auto-save state between sessions
 
 ### CLI Interface
 

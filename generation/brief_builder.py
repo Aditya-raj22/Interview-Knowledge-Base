@@ -17,6 +17,7 @@ def generate_brief(
     mode: str = "summary",
     top_k: int = TOP_K_RESULTS,
     model: str = GENERATION_MODEL,
+    custom_query: str = None,
 ) -> Dict[str, Any]:
     """
     Generate an interview preparation brief using RAG.
@@ -27,6 +28,7 @@ def generate_brief(
         mode: Brief mode (summary/technical/biographical/strategic)
         top_k: Number of chunks to retrieve
         model: LLM model to use
+        custom_query: Custom query for chat mode (optional)
 
     Returns:
         Dict with keys:
@@ -52,8 +54,11 @@ def generate_brief(
     # Step 2: Retrieve relevant chunks
     retrieval_start = time.time()
 
-    # Build query from person name if provided
-    query = f"{person} at {company}" if person else f"{company} information"
+    # Build query from custom query or person/company
+    if custom_query:
+        query = custom_query
+    else:
+        query = f"{person} at {company}" if person else f"{company} information"
 
     retrieved_chunks = retriever.retrieve(query, top_k=top_k, use_clusters=True)
     retrieval_time = time.time() - retrieval_start
