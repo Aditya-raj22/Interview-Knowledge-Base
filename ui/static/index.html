@@ -90,6 +90,23 @@
                         <button id="discover-urls-btn" class="btn-primary">
                             <span class="btn-icon">🔍</span> DISCOVER_URLS
                         </button>
+
+                        <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid var(--border-color);">
+                            <div class="form-group">
+                                <label style="color: var(--highlight);">ADVANCED_FINDER:</label>
+                                <div style="font-size: 11px; color: #888; margin-bottom: 10px;">
+                                    4 bots search in parallel:<br>
+                                    • Financial (SEC, transcripts)<br>
+                                    • Interviews (YouTube, podcasts)<br>
+                                    • Science (PubMed, trials, patents)<br>
+                                    • News (articles, press releases)
+                                </div>
+                            </div>
+
+                            <button id="url-finder-btn" class="btn-primary">
+                                <span class="btn-icon">🤖</span> RUN_URL_FINDER
+                            </button>
+                        </div>
                     </div>
                 </div>
 
@@ -140,6 +157,26 @@
                         </div>
 
                         <div id="url-categories" class="url-categories"></div>
+                    </div>
+
+                    <!-- URL Finder Results (Advanced) -->
+                    <div id="url-finder-display" class="url-display" style="display: none;">
+                        <div class="url-header">
+                            <h3>&gt;&gt; URL_FINDER_RESULTS</h3>
+                            <button id="copy-finder-urls-btn" class="btn-primary">COPY_ALL</button>
+                            <button id="export-notebooklm-btn" class="btn-secondary" style="margin-left: 10px;">
+                                <span class="btn-icon">📔</span> EXPORT_TO_NOTEBOOKLM
+                            </button>
+                        </div>
+
+                        <div id="url-finder-stats" class="url-stats"></div>
+
+                        <div class="url-textbox-container">
+                            <textarea id="url-finder-textbox" class="url-textbox" readonly></textarea>
+                            <div class="url-hint">Each URL on a new line. Ready for NotebookLM import.</div>
+                        </div>
+
+                        <div id="url-finder-bots" class="url-finder-bots"></div>
                     </div>
                 </div>
             </main>

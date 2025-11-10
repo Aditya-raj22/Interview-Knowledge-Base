@@ -24,6 +24,7 @@ import indexing
 import generation
 from ingestion.url_discovery import discover_urls
 from config import DATA_DIR, INDEX_DIR, BRIEF_MODES
+from bots import FinancialBot, InterviewBot, ScienceBot, NewsBot
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -65,6 +66,12 @@ class URLDiscoveryRequest(BaseModel):
     company: str
     person: Optional[str] = None
     max_urls: int = 50
+
+
+class URLFinderRequest(BaseModel):
+    person_name: str
+    company_name: str
+    max_results_per_bot: int = 50
 
 
 # Root endpoint
@@ -245,6 +252,73 @@ async def discover_urls_endpoint(request: URLDiscoveryRequest):
         }
     except Exception as e:
         logger.error(f"URL discovery error: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# URL Finder endpoint (with parallel bots)
+@app.post("/api/url-finder")
+async def url_finder(request: URLFinderRequest):
+    """
+    Advanced URL discovery using 4 specialized bots running in parallel.
+
+    Returns consolidated results from:
+    - Financial Bot: SEC filings, transcripts, investor materials
+    - Interview Bot: Videos, podcasts, LinkedIn, blogs
+    - Science Bot: PubMed, grants, trials, patents
+    - News Bot: Google News, articles, press releases, bios
+    """
+    try:
+        logger.info(f"URL Finder for {request.person_name} at {request.company_name}")
+
+        # Initialize all bots
+        bots = [
+            FinancialBot(max_results=request.max_results_per_bot),
+            InterviewBot(max_results=request.max_results_per_bot),
+            ScienceBot(max_results=request.max_results_per_bot),
+            NewsBot(max_results=request.max_results_per_bot),
+        ]
+
+        # Run all bots in parallel
+        bot_results = await asyncio.gather(*[
+            bot.safe_discover(request.person_name, request.company_name)
+            for bot in bots
+        ])
+
+        # Deduplicate URLs across all bots
+        all_urls = []
+        seen_normalized = set()
+
+        for bot_result in bot_results:
+            for url_dict in bot_result.get("results", []):
+                # Reconstruct URLResult to use normalization
+                from bots.base import URLResult
+                url_result = URLResult(**url_dict)
+                normalized = url_result.normalized_url()
+
+                if normalized not in seen_normalized:
+                    seen_normalized.add(normalized)
+                    all_urls.append(url_dict)
+
+        # Calculate total counts
+        total_urls = len(all_urls)
+        successful_bots = sum(1 for r in bot_results if r["status"] == "success")
+
+        return {
+            "status": "success",
+            "person_name": request.person_name,
+            "company_name": request.company_name,
+            "total_urls": total_urls,
+            "bots": bot_results,
+            "all_urls": all_urls,
+            "metadata": {
+                "successful_bots": successful_bots,
+                "failed_bots": len(bots) - successful_bots,
+                "timestamp": datetime.now().isoformat()
+            }
+        }
+
+    except Exception as e:
+        logger.error(f"URL Finder error: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
 
 

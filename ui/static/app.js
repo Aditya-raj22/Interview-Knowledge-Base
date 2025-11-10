@@ -42,7 +42,16 @@ const elements = {
     urlTextbox: document.getElementById('url-textbox'),
     urlStats: document.getElementById('url-stats'),
     urlCategories: document.getElementById('url-categories'),
-    copyUrlsBtn: document.getElementById('copy-urls-btn')
+    copyUrlsBtn: document.getElementById('copy-urls-btn'),
+
+    // URL Finder (Advanced)
+    urlFinderBtn: document.getElementById('url-finder-btn'),
+    urlFinderDisplay: document.getElementById('url-finder-display'),
+    urlFinderTextbox: document.getElementById('url-finder-textbox'),
+    urlFinderStats: document.getElementById('url-finder-stats'),
+    urlFinderBots: document.getElementById('url-finder-bots'),
+    copyFinderUrlsBtn: document.getElementById('copy-finder-urls-btn'),
+    exportNotebooklmBtn: document.getElementById('export-notebooklm-btn')
 };
 
 // Load saved state from localStorage
@@ -498,11 +507,205 @@ async function copyUrls() {
     }
 }
 
+//=============================================================================
+// ADVANCED URL FINDER (4 BOTS)
+//=============================================================================
+
+// URL Finder with parallel bots
+async function runUrlFinder() {
+    const company = elements.companyInput.value.trim();
+    const person = elements.personInput.value.trim();
+
+    if (!company || !person) {
+        alert('Please enter both company name and person name for URL Finder');
+        return;
+    }
+
+    const maxUrls = parseInt(elements.maxUrlsInput.value) || 50;
+
+    elements.urlFinderBtn.disabled = true;
+    elements.urlFinderBtn.innerHTML = '<span class="btn-icon">⏳</span> RUNNING...';
+
+    clearConsole();
+    logToConsole(`Running URL Finder for ${person} at ${company}...`, 'info');
+    elements.urlDisplay.style.display = 'none';
+    elements.urlFinderDisplay.style.display = 'none';
+
+    logToConsole('Starting 4 bots in parallel...', 'info');
+    logToConsole('→ Financial Bot (SEC, transcripts)', 'info');
+    logToConsole('→ Interview Bot (videos, podcasts)', 'info');
+    logToConsole('→ Science Bot (PubMed, trials, patents)', 'info');
+    logToConsole('→ News Bot (articles, press releases)', 'info');
+
+    try {
+        const response = await fetch('/api/url-finder', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                person_name: person,
+                company_name: company,
+                max_results_per_bot: maxUrls
+            })
+        });
+
+        const data = await response.json();
+
+        if (data.status === 'success') {
+            logToConsole(`✓ Found ${data.total_urls} URLs across ${data.metadata.successful_bots} bots`, 'success');
+            displayUrlFinderResults(data);
+        } else {
+            logToConsole(`Error: ${data.detail}`, 'error');
+        }
+    } catch (error) {
+        logToConsole(`Error: ${error.message}`, 'error');
+    } finally {
+        elements.urlFinderBtn.disabled = false;
+        elements.urlFinderBtn.innerHTML = '<span class="btn-icon">🤖</span> RUN_URL_FINDER';
+    }
+}
+
+// Display URL Finder results with expandable bot sections
+function displayUrlFinderResults(data) {
+    elements.urlFinderDisplay.style.display = 'block';
+
+    // Build URL list (one per line)
+    const urlList = data.all_urls.map(item => item.url).join('\n');
+    elements.urlFinderTextbox.value = urlList;
+
+    // Display stats
+    elements.urlFinderStats.innerHTML = `
+        <div class="stat-item">Total URLs: ${data.total_urls}</div>
+        <div class="stat-item">Successful Bots: ${data.metadata.successful_bots}/4</div>
+        <div class="stat-item">Person: ${data.person_name}</div>
+        <div class="stat-item">Company: ${data.company_name}</div>
+    `;
+
+    // Display bot results with expandable sections
+    let botsHtml = '<h4>&gt; RESULTS_BY_BOT</h4>';
+
+    for (const bot of data.bots) {
+        const statusIcon = bot.status === 'success' ? '✓' : '✗';
+        const statusClass = bot.status === 'success' ? 'success' : 'error';
+
+        botsHtml += `
+            <div class="bot-section">
+                <div class="bot-header" onclick="toggleBotResults('${bot.name}')">
+                    <span class="${statusClass}">${statusIcon}</span>
+                    <span class="bot-name">${bot.name.toUpperCase().replace('_', ' ')}</span>
+                    <span class="bot-count">${bot.count} URLs</span>
+                    <span class="bot-toggle" id="toggle-${bot.name}">▶</span>
+                </div>
+                <div class="bot-results" id="results-${bot.name}" style="display: none;">
+                    ${bot.status === 'success' && bot.results.length > 0 ? `
+                        ${bot.results.slice(0, 20).map(url => `
+                            <div class="url-item">
+                                <div class="url-title">${url.title}</div>
+                                <div class="url-meta">
+                                    <span class="url-source">${url.source}</span>
+                                    <span class="url-date">${url.date}</span>
+                                    <span class="url-score">Score: ${(url.relevance_score * 100).toFixed(0)}%</span>
+                                </div>
+                                <div class="url-link">${url.url}</div>
+                                ${url.description ? `<div class="url-description">${url.description}</div>` : ''}
+                            </div>
+                        `).join('')}
+                        ${bot.count > 20 ? `<div class="url-more">... and ${bot.count - 20} more URLs</div>` : ''}
+                    ` : `
+                        <div class="url-item">
+                            ${bot.status === 'error' ? `Error: ${bot.error || 'Unknown error'}` : 'No results found'}
+                        </div>
+                    `}
+                </div>
+            </div>
+        `;
+    }
+
+    elements.urlFinderBots.innerHTML = botsHtml;
+}
+
+// Toggle bot results visibility
+function toggleBotResults(botName) {
+    const resultsDiv = document.getElementById(`results-${botName}`);
+    const toggleIcon = document.getElementById(`toggle-${botName}`);
+
+    if (resultsDiv.style.display === 'none') {
+        resultsDiv.style.display = 'block';
+        toggleIcon.textContent = '▼';
+    } else {
+        resultsDiv.style.display = 'none';
+        toggleIcon.textContent = '▶';
+    }
+}
+
+// Copy URL Finder URLs to clipboard
+async function copyFinderUrls() {
+    const urls = elements.urlFinderTextbox.value;
+
+    if (!urls) {
+        alert('No URLs to copy');
+        return;
+    }
+
+    try {
+        await navigator.clipboard.writeText(urls);
+
+        // Visual feedback
+        const originalText = elements.copyFinderUrlsBtn.textContent;
+        elements.copyFinderUrlsBtn.textContent = 'COPIED!';
+        elements.copyFinderUrlsBtn.style.background = '#00AA00';
+
+        setTimeout(() => {
+            elements.copyFinderUrlsBtn.textContent = originalText;
+            elements.copyFinderUrlsBtn.style.background = '';
+        }, 2000);
+
+        logToConsole(`Copied ${urls.split('\n').length} URLs to clipboard`, 'success');
+    } catch (error) {
+        alert('Failed to copy URLs. Please select and copy manually.');
+    }
+}
+
+// Export to NotebookLM (opens in new tab)
+function exportToNotebookLM() {
+    const urls = elements.urlFinderTextbox.value;
+
+    if (!urls) {
+        alert('No URLs to export');
+        return;
+    }
+
+    // Copy to clipboard first
+    navigator.clipboard.writeText(urls).then(() => {
+        // Open NotebookLM in new tab
+        window.open('https://notebooklm.google.com/', '_blank');
+
+        logToConsole('URLs copied! Opening NotebookLM...', 'success');
+        logToConsole('Paste URLs in NotebookLM to create sources', 'info');
+
+        // Visual feedback
+        const originalText = elements.exportNotebooklmBtn.innerHTML;
+        elements.exportNotebooklmBtn.innerHTML = '<span class="btn-icon">✓</span> COPIED!';
+        elements.exportNotebooklmBtn.style.background = '#00AA00';
+
+        setTimeout(() => {
+            elements.exportNotebooklmBtn.innerHTML = originalText;
+            elements.exportNotebooklmBtn.style.background = '';
+        }, 3000);
+    }).catch(error => {
+        alert('Failed to copy URLs. Please copy manually before opening NotebookLM.');
+    });
+}
+
 // Event listeners for URL mode
 elements.modeRagBtn.addEventListener('click', () => switchMode('rag'));
 elements.modeUrlBtn.addEventListener('click', () => switchMode('url'));
 elements.discoverUrlsBtn.addEventListener('click', discoverUrls);
 elements.copyUrlsBtn.addEventListener('click', copyUrls);
+
+// Event listeners for URL Finder
+elements.urlFinderBtn.addEventListener('click', runUrlFinder);
+elements.copyFinderUrlsBtn.addEventListener('click', copyFinderUrls);
+elements.exportNotebooklmBtn.addEventListener('click', exportToNotebookLM);
 
 // Initialize
 loadSavedState();
