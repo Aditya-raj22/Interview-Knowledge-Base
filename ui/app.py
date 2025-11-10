@@ -24,7 +24,7 @@ import indexing
 import generation
 from ingestion.url_discovery import discover_urls
 from config import DATA_DIR, INDEX_DIR, BRIEF_MODES
-from bots import FinancialBot, InterviewBot, ScienceBot, NewsBot
+from bots import FinancialBot, InterviewBot, ScienceBot, NewsBot, SocialBot
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -259,13 +259,14 @@ async def discover_urls_endpoint(request: URLDiscoveryRequest):
 @app.post("/api/url-finder")
 async def url_finder(request: URLFinderRequest):
     """
-    Advanced URL discovery using 4 specialized bots running in parallel.
+    Advanced URL discovery using 5 specialized bots running in parallel.
 
     Returns consolidated results from:
     - Financial Bot: SEC filings, transcripts, investor materials
     - Interview Bot: Videos, podcasts, LinkedIn, blogs
     - Science Bot: PubMed, grants, trials, patents
     - News Bot: Google News, articles, press releases, bios
+    - Social Bot: Twitter/X, LinkedIn, professional mentions
     """
     try:
         logger.info(f"URL Finder for {request.person_name} at {request.company_name}")
@@ -276,6 +277,7 @@ async def url_finder(request: URLFinderRequest):
             InterviewBot(max_results=request.max_results_per_bot),
             ScienceBot(max_results=request.max_results_per_bot),
             NewsBot(max_results=request.max_results_per_bot),
+            SocialBot(max_results=request.max_results_per_bot),
         ]
 
         # Run all bots in parallel

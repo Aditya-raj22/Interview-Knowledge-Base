@@ -531,11 +531,12 @@ async function runUrlFinder() {
     elements.urlDisplay.style.display = 'none';
     elements.urlFinderDisplay.style.display = 'none';
 
-    logToConsole('Starting 4 bots in parallel...', 'info');
+    logToConsole('Starting 5 bots in parallel...', 'info');
     logToConsole('→ Financial Bot (SEC, transcripts)', 'info');
     logToConsole('→ Interview Bot (videos, podcasts)', 'info');
     logToConsole('→ Science Bot (PubMed, trials, patents)', 'info');
     logToConsole('→ News Bot (articles, press releases)', 'info');
+    logToConsole('→ Social Bot (Twitter/X, mentions)', 'info');
 
     try {
         const response = await fetch('/api/url-finder', {
@@ -575,7 +576,7 @@ function displayUrlFinderResults(data) {
     // Display stats
     elements.urlFinderStats.innerHTML = `
         <div class="stat-item">Total URLs: ${data.total_urls}</div>
-        <div class="stat-item">Successful Bots: ${data.metadata.successful_bots}/4</div>
+        <div class="stat-item">Successful Bots: ${data.metadata.successful_bots}/5</div>
         <div class="stat-item">Person: ${data.person_name}</div>
         <div class="stat-item">Company: ${data.company_name}</div>
     `;
