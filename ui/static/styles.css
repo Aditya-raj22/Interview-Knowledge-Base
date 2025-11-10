@@ -873,3 +873,71 @@ body {
     margin: 0 15px;
     color: var(--crimson);
 }
+
+/* Form hint text */
+.hint {
+    font-size: 10px;
+    color: #888;
+    margin-top: 5px;
+    font-style: italic;
+}
+
+/* Results sections */
+.results-section {
+    margin-bottom: 20px;
+}
+
+.results-section-title {
+    font-size: 13px;
+    color: var(--crimson);
+    font-weight: 600;
+    margin-bottom: 15px;
+    padding: 8px 12px;
+    background: #FFF8F8;
+    border-left: 3px solid var(--crimson);
+}
+
+/* Additional results section */
+.additional-results {
+    margin-top: 20px;
+    border-top: 2px dashed var(--border-gray);
+    padding-top: 15px;
+}
+
+.additional-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px;
+    background: #F5F5F5;
+    border: 1px solid var(--border-gray);
+    border-radius: 4px;
+    cursor: pointer;
+    user-select: none;
+    transition: background 0.2s;
+}
+
+.additional-header:hover {
+    background: #EBEBEB;
+}
+
+.additional-icon {
+    font-size: 14px;
+    color: var(--crimson);
+    font-weight: bold;
+    min-width: 20px;
+}
+
+.additional-title {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--dark-gray);
+}
+
+.additional-content {
+    margin-top: 10px;
+    padding: 10px;
+    background: #FAFAFA;
+    border: 1px solid var(--border-gray);
+    border-radius: 4px;
+}

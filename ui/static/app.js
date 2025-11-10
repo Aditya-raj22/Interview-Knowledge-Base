@@ -243,29 +243,57 @@ function displayUrlFinderResults(data) {
         const statusIcon = bot.status === 'success' ? '✓' : '✗';
         const statusClass = bot.status === 'success' ? 'success' : 'error';
 
+        // Split results into primary (top 50) and additional (51-150)
+        const primaryResults = bot.results.slice(0, 50);
+        const additionalResults = bot.results.slice(50, 150);
+
         botsHtml += `
             <div class="bot-section">
                 <div class="bot-header" onclick="toggleBotResults('${bot.name}')">
                     <span class="${statusClass}">${statusIcon}</span>
                     <span class="bot-name">${bot.name.toUpperCase().replace('_', ' ')}</span>
-                    <span class="bot-count">${bot.count} URLs</span>
+                    <span class="bot-count">${bot.count} URLs (Top 50 shown)</span>
                     <span class="bot-toggle" id="toggle-${bot.name}">▶</span>
                 </div>
                 <div class="bot-results" id="results-${bot.name}" style="display: none;">
                     ${bot.status === 'success' && bot.results.length > 0 ? `
-                        ${bot.results.slice(0, 20).map(url => `
-                            <div class="url-item">
-                                <div class="url-title">${url.title}</div>
-                                <div class="url-meta">
-                                    <span class="url-source">${url.source}</span>
-                                    <span class="url-date">${url.date}</span>
-                                    <span class="url-score">Score: ${(url.relevance_score * 100).toFixed(0)}%</span>
+                        <div class="results-section">
+                            <h5 class="results-section-title">🏆 TOP 50 RESULTS (Highest Relevance)</h5>
+                            ${primaryResults.map(url => `
+                                <div class="url-item">
+                                    <div class="url-title">${url.title}</div>
+                                    <div class="url-meta">
+                                        <span class="url-source">${url.source}</span>
+                                        <span class="url-date">${url.date}</span>
+                                        <span class="url-score">Score: ${(url.relevance_score * 100).toFixed(0)}%</span>
+                                    </div>
+                                    <div class="url-link">${url.url}</div>
+                                    ${url.description ? `<div class="url-description">${url.description}</div>` : ''}
                                 </div>
-                                <div class="url-link">${url.url}</div>
-                                ${url.description ? `<div class="url-description">${url.description}</div>` : ''}
+                            `).join('')}
+                        </div>
+
+                        ${additionalResults.length > 0 ? `
+                            <div class="additional-results">
+                                <div class="additional-header" onclick="toggleAdditionalResults('${bot.name}')">
+                                    <span class="additional-icon" id="additional-toggle-${bot.name}">▶</span>
+                                    <span class="additional-title">📚 ADDITIONAL RESULTS (${additionalResults.length} more URLs)</span>
+                                </div>
+                                <div class="additional-content" id="additional-${bot.name}" style="display: none;">
+                                    ${additionalResults.map(url => `
+                                        <div class="url-item">
+                                            <div class="url-title">${url.title}</div>
+                                            <div class="url-meta">
+                                                <span class="url-source">${url.source}</span>
+                                                <span class="url-date">${url.date}</span>
+                                                <span class="url-score">Score: ${(url.relevance_score * 100).toFixed(0)}%</span>
+                                            </div>
+                                            <div class="url-link">${url.url}</div>
+                                        </div>
+                                    `).join('')}
+                                </div>
                             </div>
-                        `).join('')}
-                        ${bot.count > 20 ? `<div class="url-more">... and ${bot.count - 20} more URLs</div>` : ''}
+                        ` : ''}
                     ` : `
                         <div class="url-item">
                             ${bot.status === 'error' ? `Error: ${bot.error || 'Unknown error'}` : 'No results found'}
@@ -288,6 +316,19 @@ function toggleBotResults(botName) {
         toggleIcon.textContent = '▼';
     } else {
         resultsDiv.style.display = 'none';
+        toggleIcon.textContent = '▶';
+    }
+}
+
+function toggleAdditionalResults(botName) {
+    const additionalDiv = document.getElementById(`additional-${botName}`);
+    const toggleIcon = document.getElementById(`additional-toggle-${botName}`);
+
+    if (additionalDiv.style.display === 'none') {
+        additionalDiv.style.display = 'block';
+        toggleIcon.textContent = '▼';
+    } else {
+        additionalDiv.style.display = 'none';
         toggleIcon.textContent = '▶';
     }
 }

@@ -61,16 +61,16 @@ class BaseBot(ABC):
     """
     Abstract base class for all URL finder bots.
 
-    Each bot must implement discover() to return up to 50 relevant URLs
-    for a given person and company combination.
+    Each bot must implement discover() to return up to 150 relevant URLs
+    (sorted by relevance score) for a given person and company combination.
     """
 
-    def __init__(self, max_results: int = 50):
+    def __init__(self, max_results: int = 150):
         """
         Initialize bot with result limit.
 
         Args:
-            max_results: Maximum number of URLs to return (default 50)
+            max_results: Maximum number of URLs to return (default 150)
         """
         self.max_results = max_results
         self.logger = logging.getLogger(self.__class__.__name__)
@@ -172,7 +172,7 @@ class BaseBot(ABC):
             results: List of URLResult objects
 
         Returns:
-            Deduplicated list sorted by relevance score
+            Deduplicated list sorted by relevance score (top max_results, default 150)
         """
         seen_urls = set()
         unique_results = []
@@ -183,7 +183,7 @@ class BaseBot(ABC):
                 seen_urls.add(normalized)
                 unique_results.append(result)
 
-        # Sort by relevance score (highest first)
+        # Sort by relevance score (highest first) and return top results
         unique_results.sort(key=lambda x: x.relevance_score, reverse=True)
 
         return unique_results[:self.max_results]
