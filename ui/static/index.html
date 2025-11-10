@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Interview Knowledge Base</title>
+    <title>Interview KB - URL Finder</title>
     <link rel="stylesheet" href="/static/styles.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -18,135 +18,71 @@
                 <span class="logo-text">INTERVIEW_KB</span>
                 <span class="logo-bracket">]</span>
             </div>
-            <div class="tagline">/// Research Assistant v1.0</div>
+            <div class="tagline">/// URL Finder for Interview Prep v2.0</div>
         </header>
 
         <!-- Main Content -->
-        <div class="main-grid">
+        <div class="main-grid-simple">
             <!-- Left Panel: Input Controls -->
             <aside class="left-panel">
                 <div class="panel-card">
                     <h2 class="panel-title">&gt; CONFIGURATION</h2>
 
-                    <!-- Mode Toggle -->
-                    <div class="mode-toggle">
-                        <button id="mode-rag" class="mode-btn active">RAG_MODE</button>
-                        <button id="mode-url" class="mode-btn">URL_DISCOVERY</button>
-                    </div>
-
                     <div class="form-group">
                         <label for="company">COMPANY_NAME:</label>
-                        <input type="text" id="company" placeholder="e.g., OpenAI" autocomplete="off">
+                        <input type="text" id="company" placeholder="e.g., Moderna" autocomplete="off">
                     </div>
 
                     <div class="form-group">
                         <label for="person">PERSON_NAME:</label>
-                        <input type="text" id="person" placeholder="e.g., Sam Altman" autocomplete="off">
+                        <input type="text" id="person" placeholder="e.g., Stéphane Bancel" autocomplete="off">
                     </div>
 
-                    <!-- RAG Mode Settings -->
-                    <div id="rag-settings">
-                        <div class="form-group">
-                            <label for="mode">BRIEF_MODE:</label>
-                            <select id="mode">
-                                <option value="summary">summary</option>
-                                <option value="technical">technical</option>
-                                <option value="biographical">biographical</option>
-                                <option value="strategic">strategic</option>
-                            </select>
-                        </div>
-
-                        <div class="form-group">
-                            <label for="model">LLM_MODEL:</label>
-                            <select id="model">
-                                <option value="gpt-4o">gpt-4o</option>
-                                <option value="claude-3-5-sonnet-20241022">claude-3.5-sonnet</option>
-                            </select>
-                        </div>
-
-                        <div class="checkbox-group">
-                            <label>
-                                <input type="checkbox" id="skip-ingestion">
-                                <span>SKIP_INGESTION</span>
-                            </label>
-                            <label>
-                                <input type="checkbox" id="skip-indexing">
-                                <span>SKIP_INDEXING</span>
-                            </label>
-                        </div>
-
-                        <button id="run-pipeline-btn" class="btn-primary">
-                            <span class="btn-icon">▶</span> RUN_PIPELINE
-                        </button>
+                    <div class="form-group">
+                        <label for="max-urls">MAX_URLS_PER_BOT:</label>
+                        <input type="number" id="max-urls" value="50" min="10" max="100">
                     </div>
 
-                    <!-- URL Discovery Settings -->
-                    <div id="url-settings" style="display: none;">
-                        <div class="form-group">
-                            <label for="max-urls">MAX_URLS:</label>
-                            <input type="number" id="max-urls" value="50" min="10" max="100">
-                        </div>
-
+                    <div class="button-group">
                         <button id="discover-urls-btn" class="btn-primary">
-                            <span class="btn-icon">🔍</span> DISCOVER_URLS
+                            <span class="btn-icon">🔍</span> SIMPLE_SEARCH
                         </button>
 
-                        <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid var(--border-color);">
-                            <div class="form-group">
-                                <label style="color: var(--highlight);">ADVANCED_FINDER:</label>
-                                <div style="font-size: 11px; color: #888; margin-bottom: 10px;">
-                                    5 bots search in parallel:<br>
-                                    • Financial (SEC, transcripts)<br>
-                                    • Interviews (YouTube, podcasts)<br>
-                                    • Science (PubMed, trials, patents)<br>
-                                    • News (articles, press releases)<br>
-                                    • Social (Twitter/X, mentions)
-                                </div>
-                            </div>
-
-                            <button id="url-finder-btn" class="btn-primary">
-                                <span class="btn-icon">🤖</span> RUN_URL_FINDER
-                            </button>
-                        </div>
+                        <button id="url-finder-btn" class="btn-primary btn-highlight">
+                            <span class="btn-icon">🤖</span> ADVANCED_FINDER
+                        </button>
                     </div>
-                </div>
 
-                <!-- File Browser -->
-                <div class="panel-card" id="file-browser">
-                    <h2 class="panel-title">&gt; FILES</h2>
-                    <div id="file-list" class="file-list">
-                        <div class="empty-state">No files loaded</div>
+                    <div class="info-box">
+                        <h4>ADVANCED FINDER (5 BOTS):</h4>
+                        <ul>
+                            <li>💼 Financial (SEC, transcripts)</li>
+                            <li>🎤 Interviews (YouTube, podcasts)</li>
+                            <li>🔬 Science (PubMed, trials, patents)</li>
+                            <li>📰 News (articles, press releases)</li>
+                            <li>🌐 Social (Twitter/X, LinkedIn)</li>
+                        </ul>
+                        <p>All results ready for NotebookLM import</p>
                     </div>
                 </div>
             </aside>
 
-            <!-- Center Panel: Pipeline Progress -->
+            <!-- Center Panel: Results -->
             <main class="center-panel">
                 <div class="panel-card">
-                    <h2 class="panel-title">&gt; PIPELINE_STATUS</h2>
+                    <h2 class="panel-title">&gt; CONSOLE</h2>
 
                     <div id="pipeline-console" class="console">
                         <div class="console-line">
                             <span class="console-prompt">$</span>
-                            <span class="console-text">Waiting for input...</span>
+                            <span class="console-text">Ready. Enter person + company and click a search button.</span>
                         </div>
                     </div>
 
-                    <!-- Brief Display -->
-                    <div id="brief-display" class="brief-display" style="display: none;">
-                        <div class="brief-header">
-                            <h3>&gt;&gt; GENERATED_BRIEF</h3>
-                            <button id="clear-brief-btn" class="btn-secondary">CLEAR</button>
-                        </div>
-                        <div id="brief-content" class="brief-content"></div>
-
-                        <div id="brief-meta" class="brief-meta"></div>
-                    </div>
-
-                    <!-- URL Discovery Results -->
+                    <!-- Simple URL Discovery Results -->
                     <div id="url-display" class="url-display" style="display: none;">
                         <div class="url-header">
-                            <h3>&gt;&gt; DISCOVERED_URLS</h3>
+                            <h3>&gt;&gt; SIMPLE_SEARCH_RESULTS</h3>
                             <button id="copy-urls-btn" class="btn-primary">COPY_ALL</button>
                         </div>
 
@@ -154,7 +90,7 @@
 
                         <div class="url-textbox-container">
                             <textarea id="url-textbox" class="url-textbox" readonly></textarea>
-                            <div class="url-hint">Each URL on a new line. Copy and paste directly into NotebookLM.</div>
+                            <div class="url-hint">📋 Copy these URLs and paste into NotebookLM</div>
                         </div>
 
                         <div id="url-categories" class="url-categories"></div>
@@ -163,10 +99,10 @@
                     <!-- URL Finder Results (Advanced) -->
                     <div id="url-finder-display" class="url-display" style="display: none;">
                         <div class="url-header">
-                            <h3>&gt;&gt; URL_FINDER_RESULTS</h3>
+                            <h3>&gt;&gt; ADVANCED_FINDER_RESULTS</h3>
                             <button id="copy-finder-urls-btn" class="btn-primary">COPY_ALL</button>
                             <button id="export-notebooklm-btn" class="btn-secondary" style="margin-left: 10px;">
-                                <span class="btn-icon">📔</span> EXPORT_TO_NOTEBOOKLM
+                                <span class="btn-icon">📔</span> OPEN_NOTEBOOKLM
                             </button>
                         </div>
 
@@ -174,41 +110,25 @@
 
                         <div class="url-textbox-container">
                             <textarea id="url-finder-textbox" class="url-textbox" readonly></textarea>
-                            <div class="url-hint">Each URL on a new line. Ready for NotebookLM import.</div>
+                            <div class="url-hint">📋 URLs copied! Paste into NotebookLM to create sources</div>
                         </div>
 
                         <div id="url-finder-bots" class="url-finder-bots"></div>
                     </div>
                 </div>
             </main>
-
-            <!-- Right Panel: Chat Interface -->
-            <aside class="right-panel">
-                <div class="panel-card chat-panel">
-                    <h2 class="panel-title">&gt; RAG_QUERY</h2>
-
-                    <div id="chat-messages" class="chat-messages">
-                        <div class="chat-message system">
-                            <div class="message-header">SYSTEM</div>
-                            <div class="message-content">Ready for queries. Load a company first.</div>
-                        </div>
-                    </div>
-
-                    <div class="chat-input-container">
-                        <input
-                            type="text"
-                            id="chat-input"
-                            placeholder="Ask a question..."
-                            autocomplete="off"
-                            disabled
-                        >
-                        <button id="send-query-btn" class="btn-send" disabled>
-                            <span>→</span>
-                        </button>
-                    </div>
-                </div>
-            </aside>
         </div>
+
+        <!-- Footer -->
+        <footer class="footer">
+            <div class="footer-content">
+                <span>Interview Knowledge Base v2.0</span>
+                <span class="separator">|</span>
+                <span>5 Specialized Bots</span>
+                <span class="separator">|</span>
+                <span>NotebookLM Ready</span>
+            </div>
+        </footer>
     </div>
 
     <script src="/static/app.js"></script>
