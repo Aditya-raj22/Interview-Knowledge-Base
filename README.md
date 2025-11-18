@@ -1,344 +1,315 @@
-# Interview Knowledge Base
+# Interview Knowledge Base - URL Discovery Tool
 
-A production-ready RAG-based system for interview preparation. Sources documents from multiple APIs, generates semantic embeddings, clusters content, and produces structured briefs using GPT-4o or Claude 3.5.
+**Comprehensive URL discovery for interview prep.** Input a person + company, get 100+ categorized URLs ready for NotebookLM.
 
-## 🚀 Features
+## 🎯 What It Does
 
-- **Multi-source ingestion** - Parallel fetching from SEC, PubMed, ClinicalTrials, Patents, YouTube
-- **Intelligent indexing** - OpenAI embeddings (text-embedding-3-large), spaCy NER, adaptive KMeans clustering
-- **Smart retrieval** - Cluster-aware search with entity matching (10x faster)
-- **Multi-model generation** - Support for GPT-4o and Claude 3.5 Sonnet
-- **Structured output** - Summary, insights, key entities, citations with performance metrics
-- **Retro web UI** - Beautiful terminal-style interface with real-time streaming and RAG chat
-- **Full test coverage** - 40 tests with mocked network calls
+Discovers **every relevant URL** about a company/person across the web:
 
-## 📁 Architecture
+- **Social Media**: LinkedIn, Twitter, Facebook, Instagram, GitHub profiles
+- **Thought Leadership**: Blog posts, articles, interviews, conference talks
+- **Financial**: SEC filings, earnings transcripts, investor relations
+- **Technical**: GitHub repos, patents, research papers, technical blogs
+- **News/Media**: News articles, press releases, media mentions
+- **Video**: YouTube videos, conference presentations
+- **Podcasts**: Spotify, Apple Podcasts interviews
+- **Company Info**: Official website, about pages, team pages, products
 
-```
-KB/
-├── ingestion/
-│   ├── sources/          # Plugin architecture: SEC, PubMed, ClinicalTrials, Patents, YouTube
-│   └── collector.py      # Parallel orchestrator with ThreadPoolExecutor
-├── indexing/
-│   ├── embedder.py       # Batch OpenAI API + hash-based caching
-│   ├── ner_extractor.py  # spaCy batch processing
-│   ├── clusterer.py      # Adaptive KMeans with silhouette scoring
-│   └── builder.py        # build_index() orchestrator
-├── generation/
-│   ├── retriever.py      # Cluster-aware smart retrieval
-│   ├── prompter.py       # Mode-specific templates (4 modes)
-│   ├── generator.py      # Multi-model: GPT-4o + Claude 3.5
-│   └── brief_builder.py  # generate_brief() orchestrator
-├── tests/                # 40 tests (39 passing, 1 skipped)
-├── ui/                   # Web interface
-│   ├── app.py            # FastAPI backend with SSE streaming
-│   └── static/           # HTML/CSS/JS frontend
-├── main.py               # CLI with argparse
-└── config.py             # Centralized configuration
-```
+**Output**: Newline-separated URLs perfect for pasting into NotebookLM (or any research tool).
 
-## 🛠️ Setup
+## 🚀 Quick Start
+
+### 1. Install Dependencies
 
 ```bash
-# 1. Install dependencies
 pip install -r requirements.txt
+```
 
-# 2. Download spaCy model
-python -m spacy download en_core_web_sm
+### 2. Set Up Google Search API
 
-# 3. Configure API keys
-cp .env.example .env
-# Edit .env with your keys:
-# - OPENAI_API_KEY (required for embeddings and generation)
-# - ANTHROPIC_API_KEY (optional, for Claude models)
-# - SERPAPI_KEY (optional, for Google Patents)
-# - PUBMED_API_KEY (optional, for higher rate limits)
+**Required for comprehensive discovery:**
+
+1. Go to [Google Custom Search](https://developers.google.com/custom-search)
+2. Create a Custom Search Engine
+3. Get your API key
+4. Add to `.env` file:
+
+```bash
+GOOGLE_SEARCH_API_KEY=your_key_here
+GOOGLE_SEARCH_ENGINE_ID=your_engine_id_here
+```
+
+**Optional (improves results):**
+- `YOUTUBE_API_KEY` - Better video discovery
+- `SERPAPI_KEY` - Patent search
+
+### 3. Run Discovery
+
+**Web UI (Recommended):**
+```bash
+./start_ui.sh
+# Open http://localhost:8000
+```
+
+**CLI:**
+```bash
+python main.py --company "OpenAI" --person "Sam Altman"
 ```
 
 ## 📖 Usage
 
-### Web UI (Recommended)
+### Web Interface
 
-The system includes a beautiful retro-styled web interface with two modes:
+1. Start the server: `./start_ui.sh`
+2. Open `http://localhost:8000`
+3. Enter:
+   - Company: `OpenAI`
+   - Person: `Sam Altman` (optional)
+   - Max URLs: `100`
+4. Click "DISCOVER_URLS"
+5. Copy all URLs (one-click button)
+6. Paste into NotebookLM
 
-```bash
-# Start the UI server
-./start_ui.sh
-
-# Or manually:
-cd ui && python app.py
-
-# Open browser to: http://localhost:8000
-```
-
-**Mode 1: URL Discovery (Primary) - For NotebookLM**
-- Enter company name and person
-- Click "URL_DISCOVERY" tab
-- Get 50+ relevant URLs from:
-  - Company websites (with all subpages from sitemap)
-  - SEC filings
-  - YouTube videos/interviews
-  - Podcasts (Spotify, Apple)
-  - News articles
-  - Research papers
-- One-click copy for NotebookLM import
-- URLs grouped by category
-
-**Mode 2: RAG Pipeline (Full System)**
-- Real-time pipeline progress with Server-Sent Events
-- Chat interface for RAG queries
-- File browser showing ingested sources
-- Retro terminal aesthetic (cream/white/crimson color scheme)
-- Auto-save state between sessions
-
-### CLI Interface
+### Command Line
 
 ```bash
-# Run full pipeline
-python main.py --company "TechCorp" --person "Jane Smith"
+# Basic usage
+python main.py --company "Stripe"
 
-# Use existing data (skip ingestion and indexing)
-python main.py --company "TechCorp" --skip-ingestion --skip-indexing
+# With person name
+python main.py --company "Stripe" --person "Patrick Collison"
 
-# Generate technical brief with Claude
-python main.py --company "TechCorp" --mode technical --model claude-3-5-sonnet-20241022
+# Get more URLs
+python main.py --company "OpenAI" --max-urls 150
 
-# Save output to JSON
-python main.py --company "TechCorp" --output brief.json --verbose
+# Save to JSON
+python main.py --company "Anthropic" --output urls.json
 ```
 
-### Available Options
+## 📊 Output Format
 
-- `--company` (required): Company name
-- `--person` (optional): Person name
-- `--mode`: Brief mode (`summary`, `technical`, `biographical`, `strategic`)
-- `--model`: LLM model (`gpt-4o`, `claude-3-5-sonnet-20241022`)
-- `--skip-ingestion`: Skip data collection (use existing JSONL)
-- `--skip-indexing`: Skip embedding generation (use existing index)
-- `--output`: Save results to JSON file
-- `--verbose`: Enable debug logging
-
-### Programmatic Usage
-
-```python
-from main import run_pipeline
-
-# Run full pipeline
-results = run_pipeline(
-    company="TechCorp",
-    person="Jane Smith",
-    mode="technical",
-    model="gpt-4o"
-)
-
-# Access results
-brief = results["steps"]["generation"]["brief"]
-print(brief["summary"])
-print(f"Found {len(brief['insights'])} insights")
-print(f"Cited {len(brief['citations'])} sources")
-
-# Performance metrics
-meta = brief["metadata"]
-print(f"Retrieval: {meta['retrieval_time_ms']}ms")
-print(f"Generation: {meta['generation_time_ms']}ms")
+**Text (for NotebookLM):**
+```
+https://openai.com/about
+https://linkedin.com/in/sam-altman
+https://youtube.com/watch?v=xyz
+...
 ```
 
-### Individual Modules
-
-```python
-# 1. Ingestion only
-from ingestion import run_ingestion
-output_file = run_ingestion("TechCorp", "Jane Smith")
-# → data/raw/techcorp/source.jsonl
-
-# 2. Indexing only
-from indexing import build_index
-index_dir = build_index("techcorp")
-# → data/index/techcorp/{embeddings.npy, entities.jsonl, clusters.json, metadata.json}
-
-# 3. Generation only
-from generation import generate_brief
-brief = generate_brief(
-    company="techcorp",
-    person="Jane Smith",
-    mode="summary",
-    model="gpt-4o"
-)
-```
-
-## 🎯 Brief Modes
-
-Each mode uses specialized prompts and focuses on different aspects:
-
-| Mode | Focus | Use Case |
-|------|-------|----------|
-| `summary` | General overview, key background | Initial research |
-| `technical` | Technical expertise, patents, innovations | Engineering interviews |
-| `biographical` | Career trajectory, leadership style | Executive conversations |
-| `strategic` | Business strategy, market vision | Strategy discussions |
-
-## 📊 Output Structure
-
-```python
+**JSON:**
+```json
 {
-  "summary": str,                    # Full generated text with markdown
-  "insights": [                      # Structured insights
+  "company": "OpenAI",
+  "person": "Sam Altman",
+  "total_urls": 98,
+  "urls": [
     {
-      "text": str,
-      "citations": [chunk_ids]
+      "url": "https://...",
+      "title": "...",
+      "snippet": "...",
+      "category": "social",
+      "score": 15.2
     }
   ],
-  "key_entities": [                  # Top entities by mentions
-    {
-      "type": str,                   # PERSON, ORG, GPE, etc.
-      "text": str,
-      "mentions": int
-    }
-  ],
-  "citations": [chunk_ids],          # All unique citations
-  "metadata": {
-    "company": str,
-    "person": str,
-    "mode": str,
-    "model": str,
-    "n_chunks_retrieved": int,
-    "n_citations": int,
-    "retrieval_time_ms": int,
-    "generation_time_ms": int,
-    "total_time_ms": int,
-    "timestamp": str
+  "by_category": {
+    "social": [...],
+    "thought_leadership": [...],
+    ...
   }
 }
 ```
 
-## 🧪 Testing
+## 🎯 How It Works
 
-```bash
-# Run all tests (40 tests)
-pytest tests/ -v
+### Comprehensive Discovery Strategy
 
-# Run specific test suites
-pytest tests/test_ingestion.py -v      # 9 tests
-pytest tests/test_indexing.py -v        # 8 tests
-pytest tests/test_generation.py -v      # 10 tests
-pytest tests/test_integration.py -v     # 11 tests
-pytest tests/test_pipeline.py -v        # 2 tests
+For **each category**, the tool:
 
-# Run with coverage
-pytest --cov=. --cov-report=html
-```
+1. **Social Media**
+   - Searches LinkedIn, Twitter, Facebook, Instagram, GitHub, Medium
+   - Finds both personal and company profiles
+   - 3 results per platform
 
-## ⚡ Performance Optimizations
+2. **Thought Leadership**
+   - Searches for interviews, articles, blog posts
+   - Checks Medium, Substack, dev.to, Hashnode
+   - Conference talks, speaking engagements
+   - ~40 results
 
-### Ingestion
-- **Parallel fetching**: ThreadPoolExecutor (5 sources simultaneously)
-- **Result**: 5x faster than sequential
+3. **Financial**
+   - Direct link to SEC EDGAR filings
+   - Investor relations pages
+   - Earnings transcripts, annual reports
+   - ~15 results
 
-### Indexing
-- **Batch embedding**: Up to 2048 texts per API call
-- **Smart caching**: SHA256 hash-based, persistent on disk
-- **spaCy batching**: Process 128 texts at once
-- **Result**: Re-runs are FREE (cached), first run ~$0.13/1M tokens
+4. **Technical**
+   - GitHub repositories
+   - Patent databases
+   - arXiv, Google Scholar papers
+   - Engineering/technical blogs
+   - ~20 results
 
-### Generation
-- **Cluster-aware retrieval**: Search within relevant clusters first
-- **Entity routing**: Match query entities to cluster entities
-- **Result**: 10x faster than naive full search
+5. **News/Media**
+   - General news searches
+   - Targeted searches on TechCrunch, Bloomberg, WSJ, NYT, etc.
+   - Press releases
+   - ~25 results
 
-## 💰 Cost Estimates
+6. **Video**
+   - YouTube API search (if key provided)
+   - Conference presentations
+   - Video interviews
+   - ~15 results
 
-With OpenAI pricing (Dec 2024):
+7. **Podcasts**
+   - Spotify episode search
+   - Apple Podcasts
+   - Interview appearances
+   - ~10 results
 
-| Operation | Model | Cost per 1M tokens |
-|-----------|-------|-------------------|
-| Embedding | text-embedding-3-large | $0.13 |
-| Generation | GPT-4o | $2.50 (input), $10 (output) |
+8. **Company Info**
+   - Parses company sitemap.xml
+   - About, team, leadership pages
+   - Products, careers, press kit
+   - ~20 results
 
-**Typical usage** (1000 chunks, 5-turn interview brief):
-- First run: ~$0.15 (embedding) + ~$0.05 (generation) = **$0.20**
-- Subsequent runs: ~$0.05 (generation only, embeddings cached) = **$0.05**
+**Total: 100+ URLs** across all categories, deduplicated and ranked by relevance.
 
 ## 🔧 Configuration
 
-All settings in `config.py`:
+Edit `.env` file:
 
-```python
-# API keys loaded from .env
-OPENAI_API_KEY
-ANTHROPIC_API_KEY
+```bash
+# REQUIRED
+GOOGLE_SEARCH_API_KEY=your_key
+GOOGLE_SEARCH_ENGINE_ID=your_id
 
-# Embedding settings
-EMBEDDING_MODEL = "text-embedding-3-large"
-EMBEDDING_DIM = 3072
-EMBEDDING_BATCH_SIZE = 2048
-CACHE_EMBEDDINGS = True
+# OPTIONAL (but recommended)
+YOUTUBE_API_KEY=your_youtube_key
 
-# Indexing settings
-SPACY_MODEL = "en_core_web_sm"
-CLUSTER_RANGE = (3, 7)
-
-# Generation settings
-GENERATION_MODEL = "gpt-4o"
-GENERATION_TEMPERATURE = 0.7
-MAX_TOKENS = 2000
-TOP_K_RESULTS = 5
+# OPTIONAL
+SERPAPI_KEY=your_serpapi_key
 ```
 
-## 📂 Data Storage
+## 💡 Tips
+
+### Get Better Results
+
+1. **Include person name** - Gets interviews, profiles, speaking engagements
+2. **Use company full name** - "Anthropic PBC" better than "Anthropic"
+3. **Increase max_urls** - Default 100, can go to 200+
+4. **Review categories** - Check which categories found the most URLs
+
+### API Costs
+
+**Google Search API:**
+- Free tier: 100 searches/day
+- Paid: $5/1000 searches
+- This tool uses ~20-50 searches per company
+- Cost: ~$0.10-0.25 per company (paid tier)
+
+**YouTube API:**
+- Free tier: 10,000 units/day
+- This tool uses ~30 units per company
+- Essentially free for normal usage
+
+## 📁 Project Structure
 
 ```
-data/
-├── raw/{company}/
-│   └── source.jsonl              # Raw ingested documents
-└── index/{company}/
-    ├── embeddings.npy            # (N, 3072) float32 array
-    ├── entities.jsonl            # {chunk_id, entities: [{type, text}]}
-    ├── clusters.json             # {clusters, n_clusters, silhouette_score}
-    ├── metadata.json             # {model, timestamp, n_chunks}
-    └── embedding_cache.json      # SHA256 hash → embedding map
+Interview-Knowledge-Base/
+├── ingestion/
+│   └── url_discovery.py      # Core URL discovery engine
+├── ui/
+│   ├── app.py                 # FastAPI backend
+│   └── static/
+│       ├── index.html         # Web UI
+│       ├── app.js             # Frontend logic
+│       └── styles.css         # Styling
+├── main.py                    # CLI interface
+├── config.py                  # Configuration
+├── .env                       # API keys (create this)
+├── .env.example               # Template
+└── requirements.txt           # Dependencies
 ```
 
 ## 🚧 Troubleshooting
 
-**Issue**: `spaCy model not found`
+**"Google Search API not configured"**
+- Add `GOOGLE_SEARCH_API_KEY` and `GOOGLE_SEARCH_ENGINE_ID` to `.env`
+- See [GOOGLE_SEARCH_SETUP.md](GOOGLE_SEARCH_SETUP.md) for setup guide
+
+**"No URLs found"**
+- Check company name spelling
+- Try adding person name
+- Verify API keys are correct
+
+**"API quota exceeded"**
+- You've used your free 100 searches today
+- Wait until tomorrow or upgrade to paid tier
+
+**Low number of URLs**
+- Some companies have less online presence
+- Private/stealth companies will have fewer results
+- Add more API keys (YouTube, SerpAPI) for better coverage
+
+## 🎯 Use Cases
+
+### 1. Interview Preparation
 ```bash
-python -m spacy download en_core_web_sm
+# Get comprehensive research for your interview
+python main.py --company "Stripe" --person "Patrick Collison" --output stripe.json
+# → Paste URLs into NotebookLM
+# → Ask: "What should I know about Patrick?"
 ```
 
-**Issue**: `OpenAI API error`
-- Check your API key in `.env`
-- Verify you have credits: https://platform.openai.com/usage
-
-**Issue**: `Index not found`
-- Run ingestion and indexing first, or use `--skip-ingestion` / `--skip-indexing` flags
-
-**Issue**: `Rate limit errors`
-- Add `PUBMED_API_KEY` for higher limits
-- Reduce `MAX_RESULTS_PER_SOURCE` in `config.py`
-
-## 🤝 Contributing
-
+### 2. Due Diligence
 ```bash
-# Run tests
-pytest tests/ -v
-
-# Check code style
-black . --check
-flake8 .
-
-# Type checking
-mypy main.py ingestion/ indexing/ generation/
+# Research a company before joining/investing
+python main.py --company "Anthropic" --max-urls 150
+# → Review financial docs, news, technical content
 ```
+
+### 3. Competitive Analysis
+```bash
+# Compare multiple companies
+python main.py --company "OpenAI" --output openai.json
+python main.py --company "Anthropic" --output anthropic.json
+python main.py --company "Cohere" --output cohere.json
+# → Compare URL counts, categories, coverage
+```
+
+### 4. Sales/BD Research
+```bash
+# Research decision maker before a call
+python main.py --company "Databricks" --person "Ali Ghodsi"
+# → Get LinkedIn, recent interviews, thought leadership
+```
+
+## 🚀 What Makes This Comprehensive?
+
+Unlike simple Google searches, this tool:
+
+- ✅ **Searches 20+ sources** per company/person
+- ✅ **8 distinct categories** with specialized queries
+- ✅ **Parses sitemaps** to find ALL company pages
+- ✅ **Deduplicates** and removes tracking parameters
+- ✅ **Ranks by relevance** using smart scoring
+- ✅ **API-driven** for consistent, reliable results
+- ✅ **NotebookLM-ready** output format
+
+**Result:** The most comprehensive URL list possible for interview prep.
 
 ## 📝 License
 
-MIT License - see LICENSE file for details
+MIT License
 
-## 🙏 Acknowledgments
+## 🙏 Built With
 
-Built with:
-- OpenAI (text-embedding-3-large, GPT-4o)
-- Anthropic (Claude 3.5 Sonnet)
-- spaCy (NER)
-- scikit-learn (KMeans)
-- Various public APIs (SEC, PubMed, ClinicalTrials.gov)
+- Google Custom Search API
+- YouTube Data API
+- FastAPI (Web UI)
+- Python 3.8+
+
+---
+
+**Questions?** Check [GOOGLE_SEARCH_SETUP.md](GOOGLE_SEARCH_SETUP.md) for API setup help.
