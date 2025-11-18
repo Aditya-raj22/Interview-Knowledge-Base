@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """
-Interview Knowledge Base - Main Pipeline
+Interview Knowledge Base - URL Discovery Tool
 
-Orchestrates the full flow: ingestion -> indexing -> generation
+Discovers all relevant URLs for a company/person for NotebookLM import.
 """
 import argparse
 import logging
@@ -10,10 +10,7 @@ import sys
 import json
 from pathlib import Path
 from typing import Optional
-import ingestion
-import indexing
-import generation
-from config import BRIEF_MODES, GENERATION_MODEL
+from ingestion.url_discovery import discover_urls
 
 # Configure logging
 logging.basicConfig(
@@ -23,151 +20,92 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
-def run_pipeline(
+def discover_urls_cli(
     company: str,
     person: Optional[str] = None,
-    mode: str = "summary",
-    skip_ingestion: bool = False,
-    skip_indexing: bool = False,
-    model: str = GENERATION_MODEL,
+    max_urls: int = 50,
+    output_file: Optional[str] = None,
 ) -> dict:
     """
-    Run the complete interview KB pipeline.
+    Discover URLs for a company/person.
 
     Args:
         company: Company name
         person: Person name (optional)
-        mode: Brief generation mode
-        skip_ingestion: Skip ingestion if data exists
-        skip_indexing: Skip indexing if index exists
-        model: LLM model to use
+        max_urls: Maximum URLs to discover
+        output_file: Save results to file (optional)
 
     Returns:
-        Dict with pipeline results
+        Dict with discovered URLs
     """
-    logger.info(f"Starting pipeline for {company}" + (f" / {person}" if person else ""))
+    logger.info(f"Starting URL discovery for {company}" + (f" / {person}" if person else ""))
 
-    results = {
-        "company": company,
-        "person": person,
-        "mode": mode,
-        "steps": {}
-    }
-
-    # Step 1: Ingestion
-    if not skip_ingestion:
-        logger.info("="*60)
-        logger.info("STEP 1: INGESTION")
-        logger.info("="*60)
-        try:
-            output_file = ingestion.run_ingestion(company, person or company)
-            results["steps"]["ingestion"] = {
-                "status": "success",
-                "output_file": str(output_file),
-            }
-            logger.info(f"✓ Ingestion complete: {output_file}")
-        except Exception as e:
-            logger.error(f"✗ Ingestion failed: {e}")
-            results["steps"]["ingestion"] = {"status": "failed", "error": str(e)}
-            return results
-    else:
-        logger.info("Skipping ingestion (using existing data)")
-        results["steps"]["ingestion"] = {"status": "skipped"}
-
-    # Step 2: Indexing
-    if not skip_indexing:
-        logger.info("\n" + "="*60)
-        logger.info("STEP 2: INDEXING")
-        logger.info("="*60)
-        try:
-            # Convert company to folder name
-            company_folder = company.replace(" ", "_").lower()
-            index_dir = indexing.build_index(company_folder)
-            results["steps"]["indexing"] = {
-                "status": "success",
-                "index_dir": str(index_dir),
-            }
-            logger.info(f"✓ Indexing complete: {index_dir}")
-        except Exception as e:
-            logger.error(f"✗ Indexing failed: {e}")
-            results["steps"]["indexing"] = {"status": "failed", "error": str(e)}
-            return results
-    else:
-        logger.info("Skipping indexing (using existing index)")
-        results["steps"]["indexing"] = {"status": "skipped"}
-
-    # Step 3: Generation
-    logger.info("\n" + "="*60)
-    logger.info("STEP 3: GENERATION")
-    logger.info("="*60)
     try:
-        company_folder = company.replace(" ", "_").lower()
-        brief = generation.generate_brief(
-            company=company_folder,
-            person=person,
-            mode=mode,
-            model=model,
-        )
-        results["steps"]["generation"] = {
-            "status": "success",
-            "brief": brief,
+        # Discover URLs
+        urls = discover_urls(company, person, max_urls)
+
+        results = {
+            "company": company,
+            "person": person,
+            "total_urls": len(urls),
+            "urls": urls
         }
-        logger.info(f"✓ Generation complete: {len(brief['summary'])} chars, "
-                   f"{len(brief['insights'])} insights, {len(brief['citations'])} citations")
-    except Exception as e:
-        logger.error(f"✗ Generation failed: {e}")
-        results["steps"]["generation"] = {"status": "failed", "error": str(e)}
+
+        # Group by category
+        by_category = {}
+        for url_data in urls:
+            category = url_data["category"]
+            if category not in by_category:
+                by_category[category] = []
+            by_category[category].append(url_data)
+
+        results["by_category"] = by_category
+
+        # Save to file if requested
+        if output_file:
+            with open(output_file, "w") as f:
+                json.dump(results, f, indent=2)
+            logger.info(f"Results saved to {output_file}")
+
         return results
 
-    return results
+    except Exception as e:
+        logger.error(f"URL discovery failed: {e}", exc_info=True)
+        return {"error": str(e)}
 
 
 def print_results(results: dict):
-    """Pretty print pipeline results."""
+    """Pretty print URL discovery results."""
+    if "error" in results:
+        print(f"\n❌ Error: {results['error']}")
+        return
+
     print("\n" + "="*80)
-    print("INTERVIEW KNOWLEDGE BASE - PIPELINE RESULTS")
+    print("INTERVIEW KNOWLEDGE BASE - URL DISCOVERY")
     print("="*80)
 
     print(f"\n📊 Company: {results['company']}")
     if results['person']:
         print(f"👤 Person: {results['person']}")
-    print(f"📝 Mode: {results['mode']}")
+    print(f"🔗 Total URLs: {results['total_urls']}")
 
     print("\n" + "-"*80)
-    print("PIPELINE STEPS")
+    print("URLS BY CATEGORY")
     print("-"*80)
 
-    for step_name, step_data in results['steps'].items():
-        status_icon = "✓" if step_data['status'] == 'success' else "✗" if step_data['status'] == 'failed' else "⊘"
-        print(f"\n{status_icon} {step_name.upper()}: {step_data['status']}")
-        if 'error' in step_data:
-            print(f"  Error: {step_data['error']}")
+    for category, urls in results.get("by_category", {}).items():
+        print(f"\n🏷️  {category.upper()} ({len(urls)} URLs)")
+        for url_data in urls[:5]:  # Show first 5
+            print(f"  • {url_data['title'][:70]}")
+            print(f"    {url_data['url']}")
+        if len(urls) > 5:
+            print(f"  ... and {len(urls) - 5} more")
 
-    # Print brief if generation succeeded
-    if results['steps'].get('generation', {}).get('status') == 'success':
-        brief = results['steps']['generation']['brief']
-
-        print("\n" + "="*80)
-        print("GENERATED BRIEF")
-        print("="*80)
-        print(brief['summary'])
-
-        print("\n" + "-"*80)
-        print("KEY ENTITIES")
-        print("-"*80)
-        for entity in brief['key_entities'][:5]:
-            print(f"  • {entity['type']}: {entity['text']} ({entity['mentions']} mentions)")
-
-        print("\n" + "-"*80)
-        print("METADATA")
-        print("-"*80)
-        meta = brief['metadata']
-        print(f"  Model: {meta['model']}")
-        print(f"  Chunks retrieved: {meta['n_chunks_retrieved']}")
-        print(f"  Citations: {meta['n_citations']}")
-        print(f"  Retrieval time: {meta['retrieval_time_ms']}ms")
-        print(f"  Generation time: {meta['generation_time_ms']}ms")
-        print(f"  Total time: {meta['total_time_ms']}ms")
+    print("\n" + "-"*80)
+    print("ALL URLS (for NotebookLM)")
+    print("-"*80)
+    for url_data in results["urls"]:
+        print(url_data["url"])
 
     print("\n" + "="*80)
 
@@ -175,21 +113,21 @@ def print_results(results: dict):
 def main():
     """CLI entry point."""
     parser = argparse.ArgumentParser(
-        description="Interview Knowledge Base - RAG-based interview preparation system",
+        description="Interview Knowledge Base - URL Discovery for NotebookLM",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-  # Run full pipeline
-  python main.py --company "TechCorp" --person "Jane Smith"
+  # Discover URLs for a company
+  python main.py --company "OpenAI"
 
-  # Generate brief using existing data
-  python main.py --company "TechCorp" --skip-ingestion --skip-indexing
+  # Discover URLs for a person at a company
+  python main.py --company "OpenAI" --person "Sam Altman"
 
-  # Use different mode and model
-  python main.py --company "TechCorp" --mode technical --model claude-3-5-sonnet-20241022
+  # Get more URLs
+  python main.py --company "OpenAI" --max-urls 100
 
-  # Save output to JSON
-  python main.py --company "TechCorp" --output brief.json
+  # Save to file
+  python main.py --company "OpenAI" --output urls.json
         """
     )
 
@@ -203,25 +141,10 @@ Examples:
         help="Person name (optional)"
     )
     parser.add_argument(
-        "--mode",
-        choices=BRIEF_MODES,
-        default="summary",
-        help="Brief generation mode (default: summary)"
-    )
-    parser.add_argument(
-        "--model",
-        default=GENERATION_MODEL,
-        help=f"LLM model to use (default: {GENERATION_MODEL})"
-    )
-    parser.add_argument(
-        "--skip-ingestion",
-        action="store_true",
-        help="Skip ingestion step (use existing data)"
-    )
-    parser.add_argument(
-        "--skip-indexing",
-        action="store_true",
-        help="Skip indexing step (use existing index)"
+        "--max-urls",
+        type=int,
+        default=50,
+        help="Maximum URLs to discover (default: 50)"
     )
     parser.add_argument(
         "--output",
@@ -239,46 +162,23 @@ Examples:
         logging.getLogger().setLevel(logging.DEBUG)
 
     try:
-        # Run pipeline
-        results = run_pipeline(
+        # Discover URLs
+        results = discover_urls_cli(
             company=args.company,
             person=args.person,
-            mode=args.mode,
-            skip_ingestion=args.skip_ingestion,
-            skip_indexing=args.skip_indexing,
-            model=args.model,
+            max_urls=args.max_urls,
+            output_file=args.output,
         )
 
         # Print results
         print_results(results)
 
-        # Save to file if requested
-        if args.output:
-            # Make results JSON serializable
-            output_data = {
-                "company": results["company"],
-                "person": results["person"],
-                "mode": results["mode"],
-                "steps": {
-                    k: {kk: vv for kk, vv in v.items() if kk != 'brief'}
-                    for k, v in results["steps"].items()
-                }
-            }
-
-            # Add brief separately (it's already serializable)
-            if "generation" in results["steps"] and "brief" in results["steps"]["generation"]:
-                output_data["brief"] = results["steps"]["generation"]["brief"]
-
-            with open(args.output, "w") as f:
-                json.dump(output_data, f, indent=2)
-            logger.info(f"Results saved to {args.output}")
-
         # Exit with appropriate code
-        if any(step.get("status") == "failed" for step in results["steps"].values()):
+        if "error" in results:
             sys.exit(1)
 
     except KeyboardInterrupt:
-        logger.info("\nPipeline interrupted by user")
+        logger.info("\nURL discovery interrupted by user")
         sys.exit(130)
     except Exception as e:
         logger.error(f"Fatal error: {e}", exc_info=True)

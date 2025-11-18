@@ -3,173 +3,75 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Interview Knowledge Base</title>
+    <title>Interview Knowledge Base - URL Discovery</title>
     <link rel="stylesheet" href="/static/styles.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Courier+Prime:wght@400;700&display=swap" rel="stylesheet">
 </head>
 <body>
-    <div class="container">
+    <div class="container-simple">
         <!-- Header -->
         <header class="header">
             <div class="logo">
                 <span class="logo-bracket">[</span>
-                <span class="logo-text">INTERVIEW_KB</span>
+                <span class="logo-text">URL_DISCOVERY</span>
                 <span class="logo-bracket">]</span>
             </div>
-            <div class="tagline">/// Research Assistant v1.0</div>
+            <div class="tagline">/// For NotebookLM Research v2.0</div>
         </header>
 
         <!-- Main Content -->
-        <div class="main-grid">
-            <!-- Left Panel: Input Controls -->
-            <aside class="left-panel">
-                <div class="panel-card">
-                    <h2 class="panel-title">&gt; CONFIGURATION</h2>
+        <div class="main-content-simple">
+            <!-- Input Section -->
+            <section class="input-section">
+                <h2 class="section-title">&gt; CONFIGURATION</h2>
 
-                    <!-- Mode Toggle -->
-                    <div class="mode-toggle">
-                        <button id="mode-rag" class="mode-btn active">RAG_MODE</button>
-                        <button id="mode-url" class="mode-btn">URL_DISCOVERY</button>
-                    </div>
+                <div class="form-group">
+                    <label for="company">COMPANY_NAME:</label>
+                    <input type="text" id="company" placeholder="e.g., OpenAI" autocomplete="off">
+                </div>
 
-                    <div class="form-group">
-                        <label for="company">COMPANY_NAME:</label>
-                        <input type="text" id="company" placeholder="e.g., OpenAI" autocomplete="off">
-                    </div>
+                <div class="form-group">
+                    <label for="person">PERSON_NAME (optional):</label>
+                    <input type="text" id="person" placeholder="e.g., Sam Altman" autocomplete="off">
+                </div>
 
-                    <div class="form-group">
-                        <label for="person">PERSON_NAME:</label>
-                        <input type="text" id="person" placeholder="e.g., Sam Altman" autocomplete="off">
-                    </div>
+                <div class="form-group">
+                    <label for="max-urls">MAX_URLS:</label>
+                    <input type="number" id="max-urls" value="100" min="10" max="200">
+                    <span class="hint">Recommended: 100 for comprehensive discovery</span>
+                </div>
 
-                    <!-- RAG Mode Settings -->
-                    <div id="rag-settings">
-                        <div class="form-group">
-                            <label for="mode">BRIEF_MODE:</label>
-                            <select id="mode">
-                                <option value="summary">summary</option>
-                                <option value="technical">technical</option>
-                                <option value="biographical">biographical</option>
-                                <option value="strategic">strategic</option>
-                            </select>
-                        </div>
+                <button id="discover-btn" class="btn-primary">
+                    <span class="btn-icon">🔍</span> DISCOVER_URLS
+                </button>
 
-                        <div class="form-group">
-                            <label for="model">LLM_MODEL:</label>
-                            <select id="model">
-                                <option value="gpt-4o">gpt-4o</option>
-                                <option value="claude-3-5-sonnet-20241022">claude-3.5-sonnet</option>
-                            </select>
-                        </div>
+                <div id="status" class="status-message"></div>
+            </section>
 
-                        <div class="checkbox-group">
-                            <label>
-                                <input type="checkbox" id="skip-ingestion">
-                                <span>SKIP_INGESTION</span>
-                            </label>
-                            <label>
-                                <input type="checkbox" id="skip-indexing">
-                                <span>SKIP_INDEXING</span>
-                            </label>
-                        </div>
-
-                        <button id="run-pipeline-btn" class="btn-primary">
-                            <span class="btn-icon">▶</span> RUN_PIPELINE
-                        </button>
-                    </div>
-
-                    <!-- URL Discovery Settings -->
-                    <div id="url-settings" style="display: none;">
-                        <div class="form-group">
-                            <label for="max-urls">MAX_URLS:</label>
-                            <input type="number" id="max-urls" value="50" min="10" max="100">
-                        </div>
-
-                        <button id="discover-urls-btn" class="btn-primary">
-                            <span class="btn-icon">🔍</span> DISCOVER_URLS
-                        </button>
+            <!-- Results Section -->
+            <section class="results-section">
+                <div class="results-header">
+                    <h2 class="section-title">&gt; DISCOVERED_URLS</h2>
+                    <div class="results-actions">
+                        <button id="copy-all-btn" class="btn-secondary" disabled>COPY_ALL</button>
+                        <button id="clear-btn" class="btn-secondary" disabled>CLEAR</button>
                     </div>
                 </div>
 
-                <!-- File Browser -->
-                <div class="panel-card" id="file-browser">
-                    <h2 class="panel-title">&gt; FILES</h2>
-                    <div id="file-list" class="file-list">
-                        <div class="empty-state">No files loaded</div>
-                    </div>
+                <!-- Stats -->
+                <div id="stats" class="stats-panel" style="display: none;"></div>
+
+                <!-- URL Textbox -->
+                <div class="url-container">
+                    <div class="url-label">All URLs (one per line - ready for NotebookLM):</div>
+                    <textarea id="url-textbox" class="url-textbox" readonly placeholder="URLs will appear here..."></textarea>
                 </div>
-            </aside>
 
-            <!-- Center Panel: Pipeline Progress -->
-            <main class="center-panel">
-                <div class="panel-card">
-                    <h2 class="panel-title">&gt; PIPELINE_STATUS</h2>
-
-                    <div id="pipeline-console" class="console">
-                        <div class="console-line">
-                            <span class="console-prompt">$</span>
-                            <span class="console-text">Waiting for input...</span>
-                        </div>
-                    </div>
-
-                    <!-- Brief Display -->
-                    <div id="brief-display" class="brief-display" style="display: none;">
-                        <div class="brief-header">
-                            <h3>&gt;&gt; GENERATED_BRIEF</h3>
-                            <button id="clear-brief-btn" class="btn-secondary">CLEAR</button>
-                        </div>
-                        <div id="brief-content" class="brief-content"></div>
-
-                        <div id="brief-meta" class="brief-meta"></div>
-                    </div>
-
-                    <!-- URL Discovery Results -->
-                    <div id="url-display" class="url-display" style="display: none;">
-                        <div class="url-header">
-                            <h3>&gt;&gt; DISCOVERED_URLS</h3>
-                            <button id="copy-urls-btn" class="btn-primary">COPY_ALL</button>
-                        </div>
-
-                        <div id="url-stats" class="url-stats"></div>
-
-                        <div class="url-textbox-container">
-                            <textarea id="url-textbox" class="url-textbox" readonly></textarea>
-                            <div class="url-hint">Each URL on a new line. Copy and paste directly into NotebookLM.</div>
-                        </div>
-
-                        <div id="url-categories" class="url-categories"></div>
-                    </div>
-                </div>
-            </main>
-
-            <!-- Right Panel: Chat Interface -->
-            <aside class="right-panel">
-                <div class="panel-card chat-panel">
-                    <h2 class="panel-title">&gt; RAG_QUERY</h2>
-
-                    <div id="chat-messages" class="chat-messages">
-                        <div class="chat-message system">
-                            <div class="message-header">SYSTEM</div>
-                            <div class="message-content">Ready for queries. Load a company first.</div>
-                        </div>
-                    </div>
-
-                    <div class="chat-input-container">
-                        <input
-                            type="text"
-                            id="chat-input"
-                            placeholder="Ask a question..."
-                            autocomplete="off"
-                            disabled
-                        >
-                        <button id="send-query-btn" class="btn-send" disabled>
-                            <span>→</span>
-                        </button>
-                    </div>
-                </div>
-            </aside>
+                <!-- Category Breakdown -->
+                <div id="categories" class="categories-container"></div>
+            </section>
         </div>
     </div>
 

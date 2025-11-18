@@ -1,15 +1,20 @@
 """
-URL Discovery for NotebookLM Export
-Finds all relevant URLs for a company/person without scraping content.
+Comprehensive URL Discovery for NotebookLM Export
+Discovers ALL relevant URLs for a company/person across multiple categories.
 """
 import logging
 import requests
 import xml.etree.ElementTree as ET
 from typing import List, Dict, Any, Set
-from urllib.parse import urlparse, urljoin, parse_qs, urlunparse
+from urllib.parse import urlparse, urljoin, parse_qs, urlunparse, urlencode
 from dataclasses import dataclass
 import re
-from config import GOOGLE_SEARCH_API_KEY, GOOGLE_SEARCH_ENGINE_ID
+from config import (
+    GOOGLE_SEARCH_API_KEY,
+    GOOGLE_SEARCH_ENGINE_ID,
+    YOUTUBE_API_KEY,
+    SERPAPI_KEY
+)
 
 logger = logging.getLogger(__name__)
 
@@ -24,169 +29,282 @@ class URLResult:
     relevance_score: float = 0.0
 
 
-class URLDiscovery:
-    """Discovers relevant URLs for NotebookLM import."""
+class ComprehensiveURLDiscovery:
+    """Discovers ALL relevant URLs across multiple categories."""
+
+    # Category definitions
+    CATEGORIES = {
+        "social": "Social Media Profiles",
+        "thought_leadership": "Blogs, Articles & Speaking",
+        "financial": "SEC Filings & Financial Reports",
+        "technical": "GitHub, Patents & Research",
+        "news": "News Articles & Press Releases",
+        "video": "YouTube & Video Content",
+        "podcast": "Podcasts & Audio Interviews",
+        "company_info": "Company Website & About Pages"
+    }
 
     def __init__(self):
         self.discovered_urls: Set[str] = set()
         self.results: List[URLResult] = []
+        self.company_domain: str = None
 
-    def discover(self, company: str, person: str = None, max_urls: int = 50) -> List[URLResult]:
+    def discover(self, company: str, person: str = None, max_urls: int = 100) -> List[URLResult]:
         """
-        Discover all relevant URLs for a company/person.
+        Comprehensive URL discovery across all categories.
 
         Args:
             company: Company name
             person: Person name (optional)
-            max_urls: Maximum URLs to return (NotebookLM limit)
+            max_urls: Maximum URLs to return
 
         Returns:
-            List of URLResult objects, sorted by relevance
+            List of URLResult objects, sorted by category and relevance
         """
-        logger.info(f"Starting URL discovery for {company}" + (f" / {person}" if person else ""))
+        logger.info(f"🚀 Starting comprehensive URL discovery for {company}" +
+                   (f" / {person}" if person else ""))
 
-        # Step 1: Find company website
-        company_domain = self._find_company_website(company)
+        # Find company website first
+        self.company_domain = self._find_company_website(company)
+        logger.info(f"📍 Company domain: {self.company_domain}")
 
-        # Step 2: Discover URLs from multiple sources
-        self._discover_google_search(company, person)
-        self._discover_sec_filings(company)
-        self._discover_youtube(company, person)
-        self._discover_news(company, person)
-        self._discover_podcasts(company, person)
+        # Discover URLs by category (parallel would be better, but sequential for clarity)
+        self._discover_social_profiles(company, person)
+        self._discover_thought_leadership(company, person)
+        self._discover_financial_info(company)
+        self._discover_technical_content(company, person)
+        self._discover_news_media(company, person)
+        self._discover_video_content(company, person)
+        self._discover_podcast_content(company, person)
+        self._discover_company_info(company)
 
-        # Step 3: Parse company sitemap for subpages
-        if company_domain:
-            self._discover_sitemap(company_domain, company)
-
-        # Step 4: Filter and rank
+        # Post-processing
         self._deduplicate_urls()
         self._score_relevance(company, person)
-        self._categorize_urls()
 
-        # Step 5: Sort by relevance and limit
+        # Sort and limit
         sorted_results = sorted(self.results, key=lambda x: x.relevance_score, reverse=True)
         top_results = sorted_results[:max_urls]
 
-        logger.info(f"Discovered {len(self.discovered_urls)} URLs, returning top {len(top_results)}")
+        logger.info(f"✓ Discovered {len(self.discovered_urls)} URLs, returning top {len(top_results)}")
+        self._log_category_breakdown(top_results)
+
         return top_results
 
-    def _find_company_website(self, company: str) -> str:
-        """Find the official company website domain."""
-        try:
-            query = f"{company} official website"
-            url = f"https://www.googleapis.com/customsearch/v1"
-            params = {
-                "key": GOOGLE_SEARCH_API_KEY,
-                "cx": GOOGLE_SEARCH_ENGINE_ID,
-                "q": query,
-                "num": 1
-            }
+    # =============================================================================
+    # CATEGORY 1: SOCIAL MEDIA PROFILES
+    # =============================================================================
 
-            response = requests.get(url, params=params, timeout=10)
-            response.raise_for_status()
-            data = response.json()
+    def _discover_social_profiles(self, company: str, person: str = None):
+        """Discover social media profiles across all major platforms."""
+        logger.info("🔍 Discovering social media profiles...")
 
-            if data.get("items"):
-                website_url = data["items"][0]["link"]
-                domain = urlparse(website_url).netloc
-                logger.info(f"Found company website: {domain}")
-                return domain
+        platforms = {
+            "linkedin.com": f"{person or company} LinkedIn",
+            "twitter.com": f"{person or company} Twitter",
+            "facebook.com": f"{company} Facebook",
+            "instagram.com": f"{company} Instagram",
+            "youtube.com": f"{company} YouTube channel",
+            "github.com": f"{company} GitHub",
+            "medium.com": f"{person or company} Medium"
+        }
 
-        except Exception as e:
-            logger.warning(f"Could not find company website: {e}")
+        for platform, query in platforms.items():
+            self._google_search(
+                query=query,
+                category="social",
+                num_results=3,
+                site=platform
+            )
 
-        return None
+    # =============================================================================
+    # CATEGORY 2: THOUGHT LEADERSHIP
+    # =============================================================================
 
-    def _discover_google_search(self, company: str, person: str = None):
-        """Discover URLs using Google Custom Search API."""
-        try:
+    def _discover_thought_leadership(self, company: str, person: str = None):
+        """Discover blog posts, articles, interviews, and speaking engagements."""
+        logger.info("🔍 Discovering thought leadership content...")
+
+        if person:
             queries = [
-                f"{company} about",
-                f"{company} team leadership",
-                f"{company} products services",
-                f"{company} news press releases",
+                f"{person} interview",
+                f"{person} article",
+                f"{person} blog post",
+                f"{person} speaking",
+                f"{person} conference talk",
+                f"{person} podcast guest",
+                f"{person} {company} insights",
+                f"{person} writes about"
+            ]
+        else:
+            queries = [
+                f"{company} blog",
+                f"{company} insights",
+                f"{company} thought leadership",
+                f"{company} articles"
             ]
 
-            if person:
-                queries.append(f"{person} {company} interview")
-                queries.append(f"{person} biography")
+        for query in queries:
+            self._google_search(query, "thought_leadership", num_results=5)
 
-            url = f"https://www.googleapis.com/customsearch/v1"
+        # Check specific platforms
+        platforms = ["medium.com", "substack.com", "dev.to", "hashnode.com"]
+        for platform in platforms:
+            self._google_search(
+                f"{person or company} {platform}",
+                "thought_leadership",
+                num_results=3,
+                site=platform
+            )
+
+    # =============================================================================
+    # CATEGORY 3: FINANCIAL INFORMATION
+    # =============================================================================
+
+    def _discover_financial_info(self, company: str):
+        """Discover SEC filings, investor relations, earnings transcripts."""
+        logger.info("🔍 Discovering financial information...")
+
+        # SEC Filings (direct link)
+        try:
+            filing_url = f"https://www.sec.gov/cgi-bin/browse-edgar?company={company.replace(' ', '+')}&action=getcompany&type=&dateb=&owner=exclude&count=40"
+            self.results.append(URLResult(
+                url=filing_url,
+                title=f"{company} SEC EDGAR Filings",
+                snippet="Official SEC filings including 10-K, 10-Q, 8-K",
+                category="financial"
+            ))
+            self.discovered_urls.add(filing_url)
+        except Exception as e:
+            logger.warning(f"SEC filing link error: {e}")
+
+        # Search for investor relations
+        queries = [
+            f"{company} investor relations",
+            f"{company} earnings transcript",
+            f"{company} annual report",
+            f"{company} quarterly results",
+            f"{company} financial statements"
+        ]
+
+        for query in queries:
+            self._google_search(query, "financial", num_results=3)
+
+    # =============================================================================
+    # CATEGORY 4: TECHNICAL CONTENT
+    # =============================================================================
+
+    def _discover_technical_content(self, company: str, person: str = None):
+        """Discover GitHub repos, patents, research papers, technical blogs."""
+        logger.info("🔍 Discovering technical content...")
+
+        # GitHub
+        self._google_search(
+            f"{company} GitHub",
+            "technical",
+            num_results=5,
+            site="github.com"
+        )
+
+        # Patents
+        self._google_search(
+            f"{company} patents",
+            "technical",
+            num_results=5
+        )
+
+        # Research papers
+        platforms = ["arxiv.org", "scholar.google.com", "papers.ssrn.com"]
+        for platform in platforms:
+            self._google_search(
+                f"{person or company} {platform}",
+                "technical",
+                num_results=3,
+                site=platform
+            )
+
+        # Technical blogs
+        self._google_search(
+            f"{company} engineering blog",
+            "technical",
+            num_results=5
+        )
+        self._google_search(
+            f"{company} technical blog",
+            "technical",
+            num_results=5
+        )
+
+    # =============================================================================
+    # CATEGORY 5: NEWS & MEDIA
+    # =============================================================================
+
+    def _discover_news_media(self, company: str, person: str = None):
+        """Discover news articles, press releases, media mentions."""
+        logger.info("🔍 Discovering news and media coverage...")
+
+        queries = [
+            f"{company} news",
+            f"{company} press release",
+            f"{company} announcement",
+            f"{company} launches"
+        ]
+
+        if person:
+            queries.extend([
+                f"{person} {company} news",
+                f"{person} interview",
+                f"{person} profile"
+            ])
+
+        for query in queries:
+            self._google_search(query, "news", num_results=5)
+
+        # News sources
+        news_sites = [
+            "techcrunch.com", "bloomberg.com", "reuters.com",
+            "wsj.com", "nytimes.com", "theverge.com", "wired.com"
+        ]
+
+        for site in news_sites:
+            self._google_search(
+                f"{company} {site}",
+                "news",
+                num_results=2,
+                site=site
+            )
+
+    # =============================================================================
+    # CATEGORY 6: VIDEO CONTENT
+    # =============================================================================
+
+    def _discover_video_content(self, company: str, person: str = None):
+        """Discover YouTube videos, conference talks, video interviews."""
+        logger.info("🔍 Discovering video content...")
+
+        if YOUTUBE_API_KEY:
+            self._youtube_search(company, person)
+        else:
+            # Fallback to Google search
+            queries = [
+                f"{company} YouTube",
+                f"{person} video interview" if person else f"{company} video",
+                f"{person} talk" if person else f"{company} presentation"
+            ]
 
             for query in queries:
-                params = {
-                    "key": GOOGLE_SEARCH_API_KEY,
-                    "cx": GOOGLE_SEARCH_ENGINE_ID,
-                    "q": query,
-                    "num": 10
-                }
+                self._google_search(query, "video", num_results=5, site="youtube.com")
 
-                response = requests.get(url, params=params, timeout=10)
-                response.raise_for_status()
-                data = response.json()
-
-                for item in data.get("items", []):
-                    self.results.append(URLResult(
-                        url=item["link"],
-                        title=item.get("title", ""),
-                        snippet=item.get("snippet", ""),
-                        category="web"
-                    ))
-                    self.discovered_urls.add(item["link"])
-
-            logger.info(f"Google Search: Found {len(self.results)} URLs")
-
-        except Exception as e:
-            logger.warning(f"Google Search error: {e}")
-
-    def _discover_sec_filings(self, company: str):
-        """Discover SEC filing URLs directly."""
+    def _youtube_search(self, company: str, person: str = None):
+        """Search YouTube API for videos."""
         try:
-            # Search for company CIK
-            search_url = f"https://www.sec.gov/cgi-bin/browse-edgar"
-            params = {
-                "action": "getcompany",
-                "company": company,
-                "type": "",
-                "dateb": "",
-                "owner": "exclude",
-                "count": 10,
-                "search_text": ""
-            }
-
-            headers = {"User-Agent": "Interview KB aditya.raj.fun@gmail.com"}
-            response = requests.get(search_url, params=params, headers=headers, timeout=10)
-
-            # Parse HTML to extract filing links (simplified)
-            if "No matching" not in response.text:
-                # Direct link to company filings
-                filing_url = f"https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&company={company.replace(' ', '+')}&type=&dateb=&owner=exclude&count=40"
-
-                self.results.append(URLResult(
-                    url=filing_url,
-                    title=f"{company} SEC Filings",
-                    snippet="SEC EDGAR company filings",
-                    category="sec"
-                ))
-                self.discovered_urls.add(filing_url)
-
-                logger.info(f"SEC: Found filing page")
-
-        except Exception as e:
-            logger.warning(f"SEC discovery error: {e}")
-
-    def _discover_youtube(self, company: str, person: str = None):
-        """Discover YouTube video URLs."""
-        try:
-            from config import YOUTUBE_API_KEY
-            if not YOUTUBE_API_KEY:
-                return
-
             queries = [f"{company} official"]
             if person:
-                queries.append(f"{person} interview")
-                queries.append(f"{person} {company}")
+                queries.extend([
+                    f"{person} interview",
+                    f"{person} talk",
+                    f"{person} {company}"
+                ])
 
             url = "https://www.googleapis.com/youtube/v3/search"
 
@@ -207,90 +325,76 @@ class URLDiscovery:
                     video_id = item["id"]["videoId"]
                     video_url = f"https://www.youtube.com/watch?v={video_id}"
 
-                    self.results.append(URLResult(
-                        url=video_url,
-                        title=item["snippet"]["title"],
-                        snippet=item["snippet"]["description"][:200],
-                        category="youtube"
-                    ))
-                    self.discovered_urls.add(video_url)
+                    if video_url not in self.discovered_urls:
+                        self.results.append(URLResult(
+                            url=video_url,
+                            title=item["snippet"]["title"],
+                            snippet=item["snippet"]["description"][:200],
+                            category="video"
+                        ))
+                        self.discovered_urls.add(video_url)
 
-            logger.info(f"YouTube: Found {len([r for r in self.results if r.category == 'youtube'])} videos")
-
-        except Exception as e:
-            logger.warning(f"YouTube discovery error: {e}")
-
-    def _discover_news(self, company: str, person: str = None):
-        """Discover news article URLs."""
-        try:
-            # Use Google News search via Custom Search with news filter
-            query = f"{company} news"
-            if person:
-                query = f"{person} {company} news"
-
-            url = f"https://www.googleapis.com/customsearch/v1"
-            params = {
-                "key": GOOGLE_SEARCH_API_KEY,
-                "cx": GOOGLE_SEARCH_ENGINE_ID,
-                "q": query,
-                "num": 10,
-                "tbm": "nws"  # News search
-            }
-
-            response = requests.get(url, params=params, timeout=10)
-            response.raise_for_status()
-            data = response.json()
-
-            for item in data.get("items", []):
-                self.results.append(URLResult(
-                    url=item["link"],
-                    title=item.get("title", ""),
-                    snippet=item.get("snippet", ""),
-                    category="news"
-                ))
-                self.discovered_urls.add(item["link"])
-
-            logger.info(f"News: Found {len([r for r in self.results if r.category == 'news'])} articles")
+            logger.info(f"YouTube: Found {len([r for r in self.results if r.category == 'video'])} videos")
 
         except Exception as e:
-            logger.warning(f"News discovery error: {e}")
+            logger.warning(f"YouTube search error: {e}")
 
-    def _discover_podcasts(self, company: str, person: str = None):
-        """Discover podcast episode URLs (Spotify, Apple Podcasts via search)."""
-        try:
-            # Use general search for podcast platforms
-            queries = []
-            if person:
-                queries.append(f"{person} podcast interview")
-            queries.append(f"{company} podcast")
+    # =============================================================================
+    # CATEGORY 7: PODCAST CONTENT
+    # =============================================================================
 
-            url = f"https://www.googleapis.com/customsearch/v1"
+    def _discover_podcast_content(self, company: str, person: str = None):
+        """Discover podcast episodes featuring the person/company."""
+        logger.info("🔍 Discovering podcast content...")
 
-            for query in queries:
-                params = {
-                    "key": GOOGLE_SEARCH_API_KEY,
-                    "cx": GOOGLE_SEARCH_ENGINE_ID,
-                    "q": query + " site:spotify.com OR site:podcasts.apple.com",
-                    "num": 5
-                }
+        if not person:
+            return  # Podcasts are usually person-focused
 
-                response = requests.get(url, params=params, timeout=10)
-                response.raise_for_status()
-                data = response.json()
+        queries = [
+            f"{person} podcast",
+            f"{person} interview podcast",
+            f"{person} guest",
+        ]
 
-                for item in data.get("items", []):
-                    self.results.append(URLResult(
-                        url=item["link"],
-                        title=item.get("title", ""),
-                        snippet=item.get("snippet", ""),
-                        category="podcast"
-                    ))
-                    self.discovered_urls.add(item["link"])
+        for query in queries:
+            # Search Spotify
+            self._google_search(
+                query,
+                "podcast",
+                num_results=5,
+                site="open.spotify.com"
+            )
 
-            logger.info(f"Podcasts: Found {len([r for r in self.results if r.category == 'podcast'])} episodes")
+            # Search Apple Podcasts
+            self._google_search(
+                query,
+                "podcast",
+                num_results=5,
+                site="podcasts.apple.com"
+            )
 
-        except Exception as e:
-            logger.warning(f"Podcast discovery error: {e}")
+    # =============================================================================
+    # CATEGORY 8: COMPANY INFORMATION
+    # =============================================================================
+
+    def _discover_company_info(self, company: str):
+        """Discover company website pages: about, team, products, etc."""
+        logger.info("🔍 Discovering company information pages...")
+
+        if self.company_domain:
+            # Parse sitemap for all company pages
+            self._discover_sitemap(self.company_domain, company)
+
+        # Search for specific company pages
+        pages = ["about", "team", "leadership", "careers", "products", "services", "contact", "press"]
+
+        for page in pages:
+            self._google_search(
+                f"{company} {page}",
+                "company_info",
+                num_results=2,
+                site=self.company_domain
+            )
 
     def _discover_sitemap(self, domain: str, company: str):
         """Parse sitemap.xml to discover all company website subpages."""
@@ -308,80 +412,136 @@ class URLDiscovery:
                     response = requests.get(sitemap_url, headers=headers, timeout=10)
                     response.raise_for_status()
 
-                    # Parse XML
                     root = ET.fromstring(response.content)
-
-                    # Handle both sitemap and sitemap index
                     namespaces = {"ns": "http://www.sitemaps.org/schemas/sitemap/0.9"}
 
-                    # Extract URLs
                     urls = root.findall(".//ns:loc", namespaces)
 
-                    for url_elem in urls:
+                    for url_elem in urls[:50]:  # Limit to first 50 pages
                         page_url = url_elem.text
 
-                        # Filter relevant pages (skip unnecessary subpages)
-                        if self._is_relevant_subpage(page_url, company):
+                        if self._is_relevant_page(page_url):
                             self.results.append(URLResult(
                                 url=page_url,
                                 title=f"{company} - {self._extract_page_title(page_url)}",
                                 snippet="Company website page",
-                                category="company_site"
+                                category="company_info"
                             ))
                             self.discovered_urls.add(page_url)
 
-                    logger.info(f"Sitemap: Found {len([r for r in self.results if r.category == 'company_site'])} pages")
-                    break  # Found a working sitemap
+                    logger.info(f"Sitemap: Found {len([r for r in self.results if r.category == 'company_info'])} pages")
+                    break
 
                 except requests.RequestException:
-                    continue  # Try next sitemap URL
+                    continue
 
         except Exception as e:
             logger.warning(f"Sitemap parsing error: {e}")
 
-    def _is_relevant_subpage(self, url: str, company: str) -> bool:
-        """Filter out irrelevant subpages (pagination, search, etc.)."""
-        # Relevant keywords in URL path
+    # =============================================================================
+    # HELPER METHODS
+    # =============================================================================
+
+    def _find_company_website(self, company: str) -> str:
+        """Find the official company website domain."""
+        if not GOOGLE_SEARCH_API_KEY:
+            return None
+
+        try:
+            query = f"{company} official website"
+            url = f"https://www.googleapis.com/customsearch/v1"
+            params = {
+                "key": GOOGLE_SEARCH_API_KEY,
+                "cx": GOOGLE_SEARCH_ENGINE_ID,
+                "q": query,
+                "num": 1
+            }
+
+            response = requests.get(url, params=params, timeout=10)
+            response.raise_for_status()
+            data = response.json()
+
+            if data.get("items"):
+                website_url = data["items"][0]["link"]
+                domain = urlparse(website_url).netloc.replace("www.", "")
+                return domain
+
+        except Exception as e:
+            logger.warning(f"Could not find company website: {e}")
+
+        return None
+
+    def _google_search(self, query: str, category: str, num_results: int = 10, site: str = None):
+        """Perform Google Custom Search."""
+        if not GOOGLE_SEARCH_API_KEY or not GOOGLE_SEARCH_ENGINE_ID:
+            logger.warning("Google Search API not configured")
+            return
+
+        try:
+            # Add site restriction if specified
+            if site:
+                query = f"{query} site:{site}"
+
+            url = "https://www.googleapis.com/customsearch/v1"
+            params = {
+                "key": GOOGLE_SEARCH_API_KEY,
+                "cx": GOOGLE_SEARCH_ENGINE_ID,
+                "q": query,
+                "num": min(num_results, 10)  # API max is 10
+            }
+
+            response = requests.get(url, params=params, timeout=10)
+            response.raise_for_status()
+            data = response.json()
+
+            for item in data.get("items", []):
+                url_str = item["link"]
+
+                if url_str not in self.discovered_urls:
+                    self.results.append(URLResult(
+                        url=url_str,
+                        title=item.get("title", ""),
+                        snippet=item.get("snippet", ""),
+                        category=category
+                    ))
+                    self.discovered_urls.add(url_str)
+
+        except Exception as e:
+            logger.warning(f"Google search error for '{query}': {e}")
+
+    def _is_relevant_page(self, url: str) -> bool:
+        """Filter relevant company website pages."""
         relevant_keywords = [
-            "about", "team", "leadership", "company", "mission",
-            "product", "service", "technology", "innovation",
-            "blog", "news", "press", "media", "contact"
+            "about", "team", "leadership", "company", "mission", "vision",
+            "product", "service", "technology", "innovation", "solution",
+            "blog", "news", "press", "media", "contact", "career", "culture"
         ]
 
-        # Irrelevant patterns
         irrelevant_patterns = [
-            r"\?page=\d+",  # Pagination
-            r"/search",  # Search pages
-            r"/category/",  # Category pages
-            r"/tag/",  # Tag pages
-            r"/author/",  # Author pages
-            r"/\d{4}/\d{2}/\d{2}/",  # Date-based URLs (too many blog posts)
+            r"\?page=\d+", r"/search", r"/category/", r"/tag/",
+            r"/author/", r"/\d{4}/\d{2}/\d{2}/"
         ]
 
         url_lower = url.lower()
 
-        # Check if URL contains relevant keywords
         has_relevant = any(keyword in url_lower for keyword in relevant_keywords)
-
-        # Check if URL matches irrelevant patterns
         is_irrelevant = any(re.search(pattern, url) for pattern in irrelevant_patterns)
 
         return has_relevant and not is_irrelevant
 
     def _extract_page_title(self, url: str) -> str:
-        """Extract a readable title from URL path."""
+        """Extract readable title from URL path."""
         path = urlparse(url).path
         segments = [s for s in path.split("/") if s]
 
         if segments:
-            # Get last segment, clean it up
             title = segments[-1].replace("-", " ").replace("_", " ").title()
             return title
 
         return "Homepage"
 
     def _deduplicate_urls(self):
-        """Remove duplicate URLs (normalize and dedupe)."""
+        """Remove duplicate URLs."""
         seen = set()
         unique_results = []
 
@@ -390,7 +550,7 @@ class URLDiscovery:
 
             if normalized not in seen:
                 seen.add(normalized)
-                result.url = normalized  # Use normalized URL
+                result.url = normalized
                 unique_results.append(result)
 
         self.results = unique_results
@@ -400,17 +560,15 @@ class URLDiscovery:
         """Normalize URL (remove tracking params, fragments)."""
         parsed = urlparse(url)
 
-        # Remove common tracking parameters
         query_params = parse_qs(parsed.query)
-        tracking_params = ["utm_source", "utm_medium", "utm_campaign", "utm_content", "utm_term", "ref", "source"]
+        tracking_params = [
+            "utm_source", "utm_medium", "utm_campaign", "utm_content",
+            "utm_term", "ref", "source", "fbclid", "gclid"
+        ]
 
         cleaned_params = {k: v for k, v in query_params.items() if k not in tracking_params}
-
-        # Rebuild query string
-        from urllib.parse import urlencode
         cleaned_query = urlencode(cleaned_params, doseq=True)
 
-        # Rebuild URL without fragment
         normalized = urlunparse((
             parsed.scheme,
             parsed.netloc,
@@ -423,7 +581,7 @@ class URLDiscovery:
         return normalized
 
     def _score_relevance(self, company: str, person: str = None):
-        """Score each URL's relevance based on title/snippet."""
+        """Score each URL's relevance."""
         company_terms = company.lower().split()
         person_terms = person.lower().split() if person else []
 
@@ -431,47 +589,41 @@ class URLDiscovery:
             score = 0.0
             text = f"{result.title} {result.snippet}".lower()
 
-            # Company name mentions
+            # Company/person mentions
             for term in company_terms:
                 score += text.count(term) * 2
-
-            # Person name mentions
             for term in person_terms:
                 score += text.count(term) * 3
 
-            # Category bonuses
-            category_bonus = {
-                "company_site": 10,
-                "sec": 8,
-                "youtube": 6,
-                "news": 5,
-                "podcast": 5,
-                "web": 3
+            # Category priority
+            category_scores = {
+                "company_info": 10,
+                "social": 9,
+                "thought_leadership": 8,
+                "financial": 8,
+                "video": 7,
+                "news": 6,
+                "technical": 6,
+                "podcast": 5
             }
-            score += category_bonus.get(result.category, 1)
+            score += category_scores.get(result.category, 1)
 
             result.relevance_score = score
 
-    def _categorize_urls(self):
-        """Ensure all URLs are properly categorized."""
-        for result in self.results:
-            if result.category == "web":
-                # Re-categorize based on URL domain
-                domain = urlparse(result.url).netloc.lower()
+    def _log_category_breakdown(self, results: List[URLResult]):
+        """Log category breakdown for debugging."""
+        category_counts = {}
+        for result in results:
+            category_counts[result.category] = category_counts.get(result.category, 0) + 1
 
-                if "sec.gov" in domain:
-                    result.category = "sec"
-                elif "youtube.com" in domain or "youtu.be" in domain:
-                    result.category = "youtube"
-                elif "spotify.com" in domain or "podcasts.apple.com" in domain:
-                    result.category = "podcast"
-                elif any(news in domain for news in ["news", "bloomberg", "reuters", "wsj", "nytimes", "techcrunch"]):
-                    result.category = "news"
+        logger.info("Category breakdown:")
+        for category, count in sorted(category_counts.items(), key=lambda x: x[1], reverse=True):
+            logger.info(f"  {category}: {count} URLs")
 
 
-def discover_urls(company: str, person: str = None, max_urls: int = 50) -> List[Dict[str, Any]]:
+def discover_urls(company: str, person: str = None, max_urls: int = 100) -> List[Dict[str, Any]]:
     """
-    Main entry point for URL discovery.
+    Main entry point for comprehensive URL discovery.
 
     Args:
         company: Company name
@@ -479,12 +631,11 @@ def discover_urls(company: str, person: str = None, max_urls: int = 50) -> List[
         max_urls: Maximum URLs to return
 
     Returns:
-        List of dicts with url, title, snippet, category
+        List of dicts with url, title, snippet, category, score
     """
-    discoverer = URLDiscovery()
+    discoverer = ComprehensiveURLDiscovery()
     results = discoverer.discover(company, person, max_urls)
 
-    # Convert to dict format
     return [
         {
             "url": r.url,
